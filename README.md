@@ -1,6 +1,6 @@
-# MeLi Lite
+# MELISearch
 
-MeLi Lite is a SwiftUI Mercado Libre sample app focused on product search and product detail flows. The project uses MVVM by feature, async/await networking, an explicit repository boundary, and two runtime data sources: deterministic demo fixtures and the live Mercado Libre API.
+MELISearch is a SwiftUI Mercado Libre sample app focused on product search and product detail flows. The project uses MVVM by feature, async/await networking, an explicit repository boundary, and two runtime data sources: deterministic demo fixtures and the live Mercado Libre API.
 
 ## Highlights
 
