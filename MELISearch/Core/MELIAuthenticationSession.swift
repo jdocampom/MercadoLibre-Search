@@ -41,10 +41,14 @@ import OSLog
 
     /// Minimal `/users/me` payload used to confirm the authenticated account behind the current token.
     struct ValidatedUser: Decodable, Equatable, Sendable {
+        /// Mercado Libre numeric user identifier returned by `/users/me`.
         let id: Int
+        /// Public nickname associated with the validated account when available.
         let nickname: String?
+        /// Mercado Libre site identifier for the validated account.
         let siteID: String?
 
+        /// Maps snake_case keys from `/users/me` into the Swift representation.
         private enum CodingKeys: String, CodingKey {
             case id
             case nickname
@@ -55,34 +59,37 @@ import OSLog
     /// The application's configuration, providing access to OAuth parameters,
     /// environment flags (such as demo mode), and any preset access tokens.
     private let configuration: AppConfiguration
-    
-    /// The OAuth configuration for Mercado Libre if available, containing endpoints and credentials 
+
+    /// The OAuth configuration for Mercado Libre if available, containing endpoints and credentials
     /// necessary for performing the OAuth authorization code flow.
     private let oauthConfiguration: MELIOAuthConfiguration?
-    
+
     /// A secure storage interface for saving, loading, and deleting persisted credentials related
     /// to Mercado Libre OAuth sessions.
     private let keychainStore: KeychainStore
-    
+
     /// The URLSession instance used to perform network requests for OAuth flows
     /// and token exchanges.
     private let urlSession: URLSession
 
     /// The current state of the OAuth authentication session.
     private(set) var status: Status
-    
+
     /// The Mercado Libre user ID currently associated with the active authentication
     /// session, if available.
     private(set) var currentUserID: Int?
-    
+
     /// The most recent error encountered during an OAuth operation or authentication flow.
     private(set) var latestError: AppError?
 
     /// Latest explicit validation result for the current live session.
     private(set) var sessionValidation: SessionValidation = .idle
 
+    /// Persisted OAuth credentials loaded from Keychain for the current launch.
     @ObservationIgnored private var persistedCredentials: StoredCredentials?
+    /// In-memory authorization attempt used to validate the returned OAuth state.
     @ObservationIgnored private var pendingAuthorization: PendingAuthorization?
+    /// Guards the one-time startup preparation sequence.
     @ObservationIgnored private var hasPrepared = false
 
     /// Creates a session coordinator for the current runtime configuration.
@@ -549,6 +556,7 @@ import OSLog
     }
 
     /// Loads any previously persisted OAuth credentials from the keychain.
+    /// - Returns: Stored OAuth credentials for the current app id, or `nil` when nothing is persisted.
     private func loadPersistedCredentials() throws -> StoredCredentials? {
         guard let data = try keychainStore.load() else {
             return nil
@@ -615,6 +623,10 @@ import OSLog
     }
 
     /// Ensures the callback URL belongs to the registered redirect endpoint before reading the code or state.
+    /// - Parameters:
+    ///   - callbackURL: Redirect URL pasted back into the app by the user.
+    ///   - expected: Redirect URL registered in the local OAuth configuration.
+    /// - Returns: `true` when scheme, host, port, and path all match.
     private func callbackMatchesRegisteredRedirect(_ callbackURL: URL, expected redirectURL: URL) -> Bool {
         guard
             let callbackComponents = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
@@ -633,17 +645,23 @@ import OSLog
 private extension MELIAuthenticationSession {
     /// Wrapper used to make it explicit when the app already normalized the pasted code value.
     struct AuthorizationCode {
+        /// Authorization code returned by the Mercado Libre redirect.
         let code: String
     }
 
     /// State material that stays in memory only for the current authorization attempt.
     struct PendingAuthorization {
+        /// Random state value attached to the browser request and validated on callback.
         let state: String
 
+        /// Creates a new authorization attempt with a freshly generated state token.
         init() {
             state = Self.randomURLSafeString(byteCount: 24)
         }
 
+        /// Generates a URL-safe random state token suitable for OAuth state validation.
+        /// - Parameter byteCount: Number of random bytes to encode before normalization.
+        /// - Returns: A base64url-compatible random string.
         private static func randomURLSafeString(byteCount: Int) -> String {
             let bytes = (0 ..< byteCount).map { _ in UInt8.random(in: .min ... .max) }
             return Data(bytes)
@@ -656,10 +674,15 @@ private extension MELIAuthenticationSession {
 
     /// Persisted OAuth credentials stored in the keychain for future launches.
     struct StoredCredentials: Codable, Equatable, Sendable {
+        /// Bearer token used for authenticated Mercado Libre requests.
         let accessToken: String
+        /// Refresh token used to renew the live session when it nears expiration.
         let refreshToken: String?
+        /// Timestamp after which the access token should be considered expired.
         let expirationDate: Date
+        /// OAuth scope string returned by Mercado Libre.
         let scope: String?
+        /// Mercado Libre user id associated with the stored session.
         let userID: Int?
 
         /// Creates a storable representation from Mercado Libre's token response.
@@ -682,12 +705,18 @@ private extension MELIAuthenticationSession {
 
     /// Decodable representation of Mercado Libre's token endpoint response.
     struct TokenResponse: Decodable {
+        /// Bearer token used for authenticated Mercado Libre requests.
         let accessToken: String
+        /// Refresh token returned by the OAuth exchange when available.
         let refreshToken: String?
+        /// Lifetime of the access token in seconds.
         let expiresIn: Int
+        /// OAuth scope string returned by Mercado Libre.
         let scope: String?
+        /// Mercado Libre user id associated with the token response.
         let userID: Int?
 
+        /// Maps snake_case OAuth keys into the camelCase Swift representation.
         private enum CodingKeys: String, CodingKey {
             case accessToken = "access_token"
             case refreshToken = "refresh_token"
@@ -699,6 +728,7 @@ private extension MELIAuthenticationSession {
 }
 
 private extension CharacterSet {
+    /// URL-query-safe character set used to encode form values while preserving separators.
     static let urlQueryValueAllowed: CharacterSet = {
         var characterSet = CharacterSet.urlQueryAllowed
         characterSet.remove(charactersIn: "&+=?")
@@ -708,6 +738,8 @@ private extension CharacterSet {
 
 private extension MELIAuthenticationSession {
     /// Converts HTTP status codes into domain-specific errors for the auth and validation flows.
+    /// - Parameter statusCode: HTTP status code returned by Mercado Libre.
+    /// - Returns: The closest `AppError` representation for the authentication flow.
     func mapStatusCode(_ statusCode: Int) -> AppError {
         switch statusCode {
         case 401:

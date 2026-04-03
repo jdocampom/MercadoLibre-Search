@@ -4,7 +4,9 @@ import Foundation
 struct AppConfiguration: Equatable, Sendable {
     /// Selects whether the app talks to the live API or uses local fixtures.
     enum DataSource: String, Sendable {
+        /// Uses local in-memory fixtures and avoids live network requests.
         case demo
+        /// Uses Mercado Libre's live API and OAuth-capable services.
         case live
     }
 
@@ -27,6 +29,8 @@ struct AppConfiguration: Equatable, Sendable {
     static let current = resolve(environment: ProcessInfo.processInfo.environment)
 
     /// Resolves the active configuration from a raw environment dictionary.
+    /// - Parameter environment: Process environment values used to configure the app session.
+    /// - Returns: A normalized configuration used by the composition root and shared services.
     static func resolve(environment: [String: String]) -> AppConfiguration {
         let accessToken = environment["MELI_ACCESS_TOKEN"]?.trimmedNonEmptyValue
         let siteID = environment["MELI_SITE_ID"]?.trimmedNonEmptyValue ?? "MCO"

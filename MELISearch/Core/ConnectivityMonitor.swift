@@ -9,10 +9,14 @@ extension Notification.Name {
 
 /// Defines all possible network connectivity state consumed by the UI and tests.
 enum ConnectivityStatus: String, Equatable, Sendable {
+    /// The app has not received a path update yet.
     case unknown
+    /// The current network path can satisfy outgoing requests.
     case connected
+    /// The current network path cannot satisfy outgoing requests.
     case disconnected
 
+    /// Indicates whether the current connectivity state can satisfy live network calls.
     var isConnected: Bool {
         self == .connected
     }
@@ -20,8 +24,11 @@ enum ConnectivityStatus: String, Equatable, Sendable {
 
 /// The notification payload keys emitted with connectivity status changes.
 enum ConnectivityStatusNotificationKey {
+    /// Key for the previous `ConnectivityStatus.rawValue`.
     static let previousStatus = "previousStatus"
+    /// Key for the current `ConnectivityStatus.rawValue`.
     static let currentStatus = "currentStatus"
+    /// Key for the boolean connectivity convenience flag.
     static let isConnected = "isConnected"
 }
 
@@ -32,7 +39,9 @@ enum ConnectivityStatusNotificationKey {
     /// The current connectivity state derived from `NWPathMonitor`.
     private(set) var status: ConnectivityStatus
 
+    /// Notification center used to broadcast status changes to non-SwiftUI observers.
     @ObservationIgnored private let notificationCenter: NotificationCenter
+    /// Task that bridges the active status stream into observable state updates.
     @ObservationIgnored private var monitoringTask: Task<Void, Never>?
 
     /// Mirrors the status enum for simpler call sites in the UI.
@@ -69,6 +78,7 @@ enum ConnectivityStatusNotificationKey {
         }
     }
 
+    /// Stops the underlying monitoring task when the monitor leaves memory.
     deinit {
         monitoringTask?.cancel()
     }

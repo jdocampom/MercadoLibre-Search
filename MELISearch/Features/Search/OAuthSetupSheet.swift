@@ -3,7 +3,9 @@ import SwiftUI
 
 /// Minimal UI that walks the user through the Mercado Libre OAuth flow.
 struct OAuthSetupSheet: View {
+    /// Dismiss action for closing the sheet after completion or cancellation.
     @Environment(\.dismiss) private var dismiss
+    /// System URL opener used to hand off authorization to the browser.
     @Environment(\.openURL) private var openURL
     /// Shared session object that drives Mercado Libre OAuth state and token exchange.
     @Bindable var authenticationSession: MELIAuthenticationSession
@@ -15,6 +17,7 @@ struct OAuthSetupSheet: View {
     /// Tracks whether the exchange request is currently in flight.
     @State private var isSubmitting = false
 
+    /// Renders the OAuth walkthrough form used to authorize, paste the callback, and validate the session.
     var body: some View {
         NavigationStack {
             Form {
@@ -91,6 +94,7 @@ struct OAuthSetupSheet: View {
 
 /// Applies platform-specific text field behavior so callback input stays unmodified.
 private struct OAuthCallbackTextFieldStyle: ViewModifier {
+    /// Applies platform-specific input behavior while preserving the pasted callback value verbatim.
     func body(content: Content) -> some View {
 #if os(macOS)
         content

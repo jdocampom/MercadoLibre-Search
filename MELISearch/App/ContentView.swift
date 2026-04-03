@@ -17,10 +17,8 @@ struct ContentView: View {
     @State private var navigationIdentity = UUID()
 
     /// Builds the root screen graph with dependencies sourced from the app container.
-    ///
     /// - Parameters:
     ///   - container: Shared dependencies assembled by the app entry point.
-    ///   
     init(container: AppContainer) {
         baseConfiguration = container.configuration
         _activeContainer = State(initialValue: container)
@@ -34,6 +32,7 @@ struct ContentView: View {
         _connectivityMonitor = State(initialValue: container.connectivityMonitor)
     }
 
+    /// Renders the root navigation stack and coordinates OAuth callback completion from incoming URLs.
     var body: some View {
         NavigationStack {
             SearchScreen(

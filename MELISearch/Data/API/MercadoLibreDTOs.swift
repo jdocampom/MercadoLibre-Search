@@ -8,19 +8,33 @@ struct MercadoSearchResponseDTO: Decodable, Sendable {
 
 /// Raw Mercado Libre item payload reused by both search and detail responses.
 struct MercadoItemDTO: Decodable, Sendable {
+    /// Mercado Libre item identifier.
     let id: String
+    /// Primary listing title.
     let title: String
+    /// Secondary marketing copy returned by some endpoints.
     let subtitle: String?
+    /// Current listing price.
     let price: Double?
+    /// Currency code used to interpret `price`.
     let currencyId: String?
+    /// Thumbnail URL returned by search responses.
     let thumbnail: String?
+    /// Deep link to the listing on Mercado Libre.
     let permalink: String?
+    /// Raw item condition from the backend.
     let condition: String?
+    /// Quantity currently available to purchase.
     let availableQuantity: Int?
+    /// Quantity already sold according to the listing.
     let soldQuantity: Int?
+    /// Warranty description returned by detail responses.
     let warranty: String?
+    /// Shipping capabilities attached to the listing.
     let shipping: MercadoShippingDTO?
+    /// Searchable attributes returned by Mercado Libre.
     let attributes: [MercadoAttributeDTO]?
+    /// Gallery images returned by detail responses.
     let pictures: [MercadoPictureDTO]?
 
     /// Maps a raw item payload into the lightweight search result model.
@@ -83,13 +97,17 @@ struct MercadoItemDTO: Decodable, Sendable {
 
 /// Raw picture payload attached to a Mercado Libre item.
 struct MercadoPictureDTO: Decodable, Sendable {
+    /// Non-secure image URL when present.
     let url: String?
+    /// HTTPS image URL when present.
     let secureUrl: String?
 }
 
 /// Raw shipping payload attached to a Mercado Libre item.
 struct MercadoShippingDTO: Decodable, Sendable {
+    /// Indicates whether the listing offers free delivery.
     let freeShipping: Bool?
+    /// Indicates whether the seller supports in-store pickup.
     let storePickup: Bool?
 
     /// Converts the API shipping payload into the domain shipping model.
@@ -103,8 +121,11 @@ struct MercadoShippingDTO: Decodable, Sendable {
 
 /// Raw attribute payload attached to a Mercado Libre item.
 struct MercadoAttributeDTO: Decodable, Sendable {
+    /// Stable attribute identifier returned by Mercado Libre.
     let id: String
+    /// Human-readable attribute label.
     let name: String
+    /// Human-readable attribute value.
     let valueName: String?
 
     /// Ignores empty attribute values before exposing them to the UI layer.

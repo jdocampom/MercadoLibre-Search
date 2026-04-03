@@ -4,22 +4,17 @@ import Foundation
 struct AppContainer {
     /// The environment-driven runtime settings.
     let configuration: AppConfiguration
-
     /// The shared OAuth session used by live Mercado Libre flows.
     let authenticationSession: MELIAuthenticationSession
-    
     /// The product data source resolved from the active configuration.
     let productRepository: ProductRepository
-    
     /// The shared reachability monitor observed by search-related screens.
     let connectivityMonitor: ConnectivityMonitor
 
     /// Creates the dependency container for the current runtime environment.
     /// - Parameters:
     ///   - configuration: Runtime settings used to resolve the active data source.
-    ///
     /// - Returns: A fully wired dependency container for the app.
-    ///
     static func main(configuration: AppConfiguration = .current) -> AppContainer {
         let authenticationSession = MELIAuthenticationSession(configuration: configuration)
         let repository = configuration.isUsingDemoData

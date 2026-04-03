@@ -5,6 +5,7 @@ struct ProductRowView: View {
     /// Product summary displayed by the row.
     let product: ProductSummary
 
+    /// Renders the card layout used by search results.
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             thumbnail
@@ -46,6 +47,7 @@ struct ProductRowView: View {
 }
 
 private extension ProductRowView {
+    /// Thumbnail area that prefers the remote image and falls back to a decorative placeholder.
     var thumbnail: some View {
         AsyncImage(url: product.thumbnailURL) { phase in
             switch phase {
@@ -75,6 +77,7 @@ private extension ProductRowView {
     }
 
     @ViewBuilder
+    /// Secondary metadata chips that highlight shipping and condition information.
     var chips: some View {
         HStack(spacing: 8) {
             if product.shipping.isFreeShipping {

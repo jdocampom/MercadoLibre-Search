@@ -3,17 +3,26 @@ import SwiftUI
 
 /// Main search experience for browsing Mercado Libre products.
 struct SearchScreen: View {
+    /// Search flow state and result data rendered by the screen.
     @Bindable var viewModel: SearchViewModel
+    /// Reachability state used to surface live-mode connectivity warnings.
     @Bindable var connectivityMonitor: ConnectivityMonitor
+    /// OAuth session state used to guide live Mercado Libre authorization.
     @Bindable var authenticationSession: MELIAuthenticationSession
     /// Handles runtime switching between demo fixtures and the live API.
+    /// - Parameter dataSource: Backend mode selected from the toolbar menu.
     let onSelectDataSource: (AppConfiguration.DataSource) -> Void
+    /// Controls keyboard focus for the search text field.
     @FocusState private var isSearchFieldFocused: Bool
+    /// Controls whether the OAuth setup sheet is currently visible.
     @State private var isOAuthSheetPresented = false
 
+    /// Curated demo suggestions shown in the idle state.
     private let suggestions = ["iPhone", "Sony", "Kindle", "Garmin", "Speaker"]
+    /// Adaptive grid used to lay out idle-state suggestion chips.
     private let columns = [GridItem(.adaptive(minimum: 120), spacing: 12)]
 
+    /// Builds the search experience including banners, result states, and the pinned search bar.
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -58,6 +67,7 @@ struct SearchScreen: View {
 }
 
 private extension SearchScreen {
+    /// Banner displayed when live mode is active but network reachability is unavailable.
     var connectivityBanner: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("No Internet Connection", systemImage: "wifi.slash")
@@ -90,12 +100,14 @@ private extension SearchScreen {
         .accessibilityIdentifier("connectivityBanner")
     }
 
+    /// Wraps the search bar so it can be inset into the safe area with consistent padding.
     var searchBarContainer: some View {
         searchBar
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
     }
 
+    /// Search field and submit controls pinned to the safe area edge.
     var searchBar: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
@@ -136,6 +148,7 @@ private extension SearchScreen {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
+    /// Chooses whether the search bar is pinned to the top or bottom based on platform conventions.
     var searchBarEdge: VerticalEdge {
         #if os(macOS)
         .top
@@ -145,6 +158,7 @@ private extension SearchScreen {
     }
 
     @ToolbarContentBuilder
+    /// Toolbar item that toggles focus for the search field.
     var searchFocusToolbarItem: some ToolbarContent {
         #if os(macOS)
         ToolbarItem(placement: .primaryAction) {
@@ -157,6 +171,7 @@ private extension SearchScreen {
         #endif
     }
 
+    /// Button used to focus or dismiss the search field.
     var searchFocusButton: some View {
         Button(action: toggleSearchFocus) {
             Image(systemName: isSearchFieldFocused ? "keyboard.chevron.compact.down" : "magnifyingglass")
@@ -166,6 +181,7 @@ private extension SearchScreen {
     }
 
     @ToolbarContentBuilder
+    /// Toolbar item that exposes the runtime demo/live data-source menu.
     var dataSourceToolbarItem: some ToolbarContent {
         #if os(macOS)
         ToolbarItem(placement: .automatic) {
@@ -178,6 +194,7 @@ private extension SearchScreen {
         #endif
     }
 
+    /// Menu that switches the app container between demo fixtures and the live API.
     var dataSourceMenu: some View {
         Menu {
             Button {
@@ -203,10 +220,12 @@ private extension SearchScreen {
         .accessibilityLabel(viewModel.configuration.isUsingDemoData ? "Demo data menu" : "Live API menu")
     }
 
+    /// Indicates whether the live connectivity warning banner should be visible.
     var shouldShowConnectivityBanner: Bool {
         !viewModel.configuration.isUsingDemoData && connectivityMonitor.status == .disconnected
     }
 
+    /// Subtitle used to show the last successful refresh time when relevant.
     var navigationSubtitle: Text? {
         guard let lastUpdatedAt = viewModel.lastUpdatedAt else {
             return nil
@@ -220,6 +239,7 @@ private extension SearchScreen {
         }
     }
 
+    /// Informational card that explains why the app is currently using demo data.
     var environmentBanner: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "info.circle.fill")
@@ -241,6 +261,7 @@ private extension SearchScreen {
         )
     }
 
+    /// Banner that explains live-session status and exposes OAuth-related actions.
     var liveAuthorizationBanner: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label(authenticationSession.statusTitle, systemImage: "person.crop.circle.badge.checkmark")
@@ -296,6 +317,7 @@ private extension SearchScreen {
     }
 
     @ViewBuilder
+    /// Resolves the visible content state for the current search lifecycle.
     var content: some View {
         switch viewModel.state {
         case .idle:
@@ -311,6 +333,7 @@ private extension SearchScreen {
         }
     }
 
+    /// Home state shown before a search runs, including suggestion shortcuts.
     var idleState: some View {
         VStack(alignment: .leading, spacing: 16) {
             ContentUnavailableView {
@@ -343,6 +366,7 @@ private extension SearchScreen {
         .accessibilityIdentifier("searchIdleState")
     }
 
+    /// Loading card shown while a search request is in flight.
     var loadingState: some View {
         VStack(spacing: 16) {
             ProgressView()
@@ -361,6 +385,7 @@ private extension SearchScreen {
         .background(cardBackground)
     }
 
+    /// Empty state shown when the search succeeds but no products match the query.
     var emptyState: some View {
         ContentUnavailableView {
             Label("No products found", systemImage: "shippingbox")
@@ -400,6 +425,7 @@ private extension SearchScreen {
         .accessibilityIdentifier("searchErrorState")
     }
 
+    /// Result list shown when the latest search returned one or more products.
     var resultsState: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
@@ -426,6 +452,7 @@ private extension SearchScreen {
         .accessibilityIdentifier("searchResultsState")
     }
 
+    /// Background gradient shared by all search states.
     var backgroundGradient: some View {
         LinearGradient(
             stops: [
@@ -441,20 +468,24 @@ private extension SearchScreen {
         )
     }
 
+    /// Card fill used across the different search states.
     var cardBackground: some View {
         RoundedRectangle(cornerRadius: 24, style: .continuous)
             .fill(Color.white.opacity(0.82))
     }
 
+    /// Toggles the current keyboard focus state for the search field.
     func toggleSearchFocus() {
         isSearchFieldFocused.toggle()
     }
 }
 
 private struct SearchNavigationSubtitleStyle: ViewModifier {
+    /// Optional subtitle shown under the navigation title.
     let subtitle: Text?
 
     @ViewBuilder
+    /// Applies the subtitle only when one is available.
     func body(content: Content) -> some View {
         if let subtitle {
             content.navigationSubtitle(subtitle)
@@ -467,6 +498,7 @@ private struct SearchNavigationSubtitleStyle: ViewModifier {
 #if os(macOS)
 /// Leaves the default macOS title behavior untouched.
 private struct SearchNavigationTitleStyle: ViewModifier {
+    /// Preserves the platform default navigation bar behavior on macOS.
     func body(content: Content) -> some View {
         content
     }
@@ -474,6 +506,7 @@ private struct SearchNavigationTitleStyle: ViewModifier {
 #else
 /// Applies the iOS navigation title and toolbar styling for the search screen.
 private struct SearchNavigationTitleStyle: ViewModifier {
+    /// Applies iOS-specific navigation bar styling for the search flow.
     func body(content: Content) -> some View {
         content
             .modifier(AppNavigationBarStyle())
@@ -483,6 +516,7 @@ private struct SearchNavigationTitleStyle: ViewModifier {
 
 /// Applies platform-specific text-field tweaks without duplicating the search bar layout.
 private struct SearchTextFieldPlatformStyle: ViewModifier {
+    /// Applies text-input behavior tailored to the current platform.
     func body(content: Content) -> some View {
         #if os(macOS)
         content

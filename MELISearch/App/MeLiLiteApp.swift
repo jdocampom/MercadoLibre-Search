@@ -13,6 +13,7 @@ struct MeLiLiteApp: App {
     /// The shared dependency graph used by the initial scene.
     private let container = AppContainer.main()
 
+    /// Creates the main app scene and injects the shared container into the root content view.
     var body: some Scene {
         WindowGroup {
             ContentView(container: container)

@@ -7,16 +7,19 @@
 
 import XCTest
 
+/// Launch-level UI smoke test that verifies the demo search screen appears successfully.
 nonisolated final class MELISearchUITestsLaunchTests: XCTestCase {
-
+    /// Requests a fresh application launch for each configured UI run.
     nonisolated override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true
     }
 
+    /// Stops execution immediately after the first failure to simplify launch diagnostics.
     nonisolated override func setUpWithError() throws {
         continueAfterFailure = false
     }
 
+    /// Launches the app in demo mode and captures a screenshot after the search field appears.
     @MainActor
     func testLaunch() throws {
         let app = XCUIApplication()

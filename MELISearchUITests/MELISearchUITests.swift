@@ -7,11 +7,14 @@
 
 import XCTest
 
+/// Demo-mode UI smoke tests that exercise the main search-to-detail flow.
 nonisolated final class MELISearchUITests: XCTestCase {
+    /// Stops execution immediately after the first failure to keep UI diagnostics readable.
     nonisolated override func setUpWithError() throws {
         continueAfterFailure = false
     }
 
+    /// Verifies that searching a demo fixture navigates to its detail screen.
     @MainActor
     func testSearchNavigatesToProductDetail() throws {
         let app = launchDemoApp()
@@ -25,6 +28,7 @@ nonisolated final class MELISearchUITests: XCTestCase {
         XCTAssertTrue(app.element(withID: "productDetailShippingCard").waitForExistence(timeout: 5))
     }
 
+    /// Verifies that a typed query filters the demo catalog down to matching rows.
     @MainActor
     func testTypedSearchShowsMatchingDemoResult() throws {
         let app = launchDemoApp()
@@ -37,6 +41,8 @@ nonisolated final class MELISearchUITests: XCTestCase {
 }
 
 private extension MELISearchUITests {
+    /// Launches the app with the deterministic demo-mode configuration used by UI tests.
+    /// - Returns: A running application instance ready for assertions.
     @MainActor
     func launchDemoApp() -> XCUIApplication {
         let app = configuredDemoApp()
@@ -44,6 +50,8 @@ private extension MELISearchUITests {
         return app
     }
 
+    /// Builds the application instance with stable locale and demo-only environment overrides.
+    /// - Returns: A configured but not yet launched application.
     @MainActor
     func configuredDemoApp() -> XCUIApplication {
         let app = XCUIApplication()
@@ -60,6 +68,10 @@ private extension MELISearchUITests {
         return app
     }
 
+    /// Types a query into the search field and taps the primary submit button.
+    /// - Parameters:
+    ///   - query: Search text to submit.
+    ///   - app: Running application under test.
     @MainActor
     func performSearch(_ query: String, in app: XCUIApplication) {
         let searchField = app.element(withID: "searchTextField")
@@ -74,6 +86,9 @@ private extension MELISearchUITests {
 }
 
 private extension XCUIApplication {
+    /// Returns the first UI element matching the provided accessibility identifier.
+    /// - Parameter identifier: Accessibility identifier assigned by the app.
+    /// - Returns: The first matching element in the application hierarchy.
     func element(withID identifier: String) -> XCUIElement {
         descendants(matching: .any)[identifier].firstMatch
     }

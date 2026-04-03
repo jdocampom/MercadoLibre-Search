@@ -2,9 +2,12 @@ import SwiftUI
 
 /// Product detail experience that expands a search result into richer product information.
 struct ProductDetailScreen: View {
+    /// Current image index for the iOS paged gallery.
     @State private var selectedImageIndex = 0
+    /// View model that resolves the secondary detail request and derived presentation data.
     @State private var viewModel: ProductDetailViewModel
 
+    /// Two-column layout used for facts and attributes.
     private let factColumns = [GridItem(.flexible()), GridItem(.flexible())]
 
     /// Creates the detail screen with the dependencies required to fetch full item data.
@@ -26,6 +29,7 @@ struct ProductDetailScreen: View {
         )
     }
 
+    /// Renders the detail layout, including gallery, facts, attributes, description, and retry UI.
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -69,6 +73,7 @@ struct ProductDetailScreen: View {
 }
 
 private extension ProductDetailScreen {
+    /// Resolves the gallery section using the best image source available for the current product.
     var gallerySection: some View {
         Group {
             if viewModel.imageURLs.count > 1 {
@@ -89,6 +94,7 @@ private extension ProductDetailScreen {
     }
 
     #if !os(macOS)
+    /// Paged image gallery used on iOS when more than one image is available.
     var pagedGallery: some View {
         TabView(selection: $selectedImageIndex) {
             ForEach(Array(viewModel.imageURLs.enumerated()), id: \.offset) { index, imageURL in
@@ -101,6 +107,7 @@ private extension ProductDetailScreen {
     }
     #endif
 
+    /// Horizontal gallery used on macOS when more than one image is available.
     var macOSGallery: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 16) {
@@ -115,6 +122,7 @@ private extension ProductDetailScreen {
         .frame(height: 320)
     }
 
+    /// Summary card that presents price and high-level facts about the product.
     var summaryCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let subtitle = viewModel.displayedSubtitle {
@@ -154,6 +162,7 @@ private extension ProductDetailScreen {
         .accessibilityIdentifier("productDetailSummaryCard")
     }
 
+    /// Shipping card that summarizes delivery and pickup capabilities.
     var shippingCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Shipping")
@@ -174,6 +183,7 @@ private extension ProductDetailScreen {
         .accessibilityIdentifier("productDetailShippingCard")
     }
 
+    /// Attribute grid shown when the product exposes additional detail metadata.
     var attributesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Key Attributes")
@@ -250,6 +260,7 @@ private extension ProductDetailScreen {
         }
     }
 
+    /// Decorative placeholder shown when the product has no remote images available.
     var placeholderImage: some View {
         ZStack {
             LinearGradient(
@@ -267,6 +278,7 @@ private extension ProductDetailScreen {
         }
     }
 
+    /// Current detail error surfaced by the view model when the secondary request fails.
     var currentError: AppError? {
         guard case let .failed(error) = viewModel.state else {
             return nil
@@ -275,6 +287,7 @@ private extension ProductDetailScreen {
         return error
     }
 
+    /// Background gradient used by the detail experience.
     var backgroundGradient: some View {
         LinearGradient(
             colors: [
@@ -286,6 +299,7 @@ private extension ProductDetailScreen {
         )
     }
 
+    /// Shared card background used across the detail sections.
     var sectionBackground: some View {
         RoundedRectangle(cornerRadius: 24, style: .continuous)
             .fill(Color.white.opacity(0.86))
@@ -295,6 +309,7 @@ private extension ProductDetailScreen {
 #if os(macOS)
 /// Leaves the default macOS navigation title behavior untouched.
 private struct ProductDetailNavigationTitleStyle: ViewModifier {
+    /// Preserves the platform default navigation bar behavior on macOS.
     func body(content: Content) -> some View {
         content
     }
@@ -302,6 +317,7 @@ private struct ProductDetailNavigationTitleStyle: ViewModifier {
 #else
 /// Applies the iOS navigation title and toolbar styling for the detail screen.
 private struct ProductDetailNavigationTitleStyle: ViewModifier {
+    /// Applies iOS-specific navigation styling for the detail flow.
     func body(content: Content) -> some View {
         content
             .navigationBarTitleDisplayMode(.inline)
@@ -312,9 +328,12 @@ private struct ProductDetailNavigationTitleStyle: ViewModifier {
 
 /// Small reusable card for product facts and attribute values.
 private struct FactCard: View {
+    /// Fact label shown at the top of the card.
     let title: String
+    /// Fact value shown under the label.
     let value: String
 
+    /// Renders a compact fact card used across summary, shipping, and attribute sections.
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)

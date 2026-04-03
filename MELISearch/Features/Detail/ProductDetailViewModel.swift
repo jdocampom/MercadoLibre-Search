@@ -8,9 +8,13 @@ import OSLog
 final class ProductDetailViewModel {
     /// View state rendered by the detail screen.
     enum State: Equatable {
+        /// Detail loading has not started yet.
         case idle
+        /// The secondary detail request is currently in flight.
         case loading
+        /// The secondary detail request completed successfully.
         case loaded
+        /// The secondary detail request failed and produced a domain error.
         case failed(AppError)
     }
 
@@ -24,6 +28,7 @@ final class ProductDetailViewModel {
     /// Full product detail returned by the repository once available.
     private(set) var detail: ProductDetail?
 
+    /// Repository used to resolve the secondary detail request.
     @ObservationIgnored private let repository: ProductRepository
 
     /// Creates the detail state holder with the selected product and repository.
@@ -43,22 +48,27 @@ final class ProductDetailViewModel {
         detail = nil
     }
 
+    /// Title rendered by the detail screen, falling back to the summary model before detail loads.
     var displayedTitle: String {
         detail?.title ?? product.title
     }
 
+    /// Subtitle rendered by the detail screen when available.
     var displayedSubtitle: String? {
         detail?.subtitle ?? product.subtitle
     }
 
+    /// Price rendered by the detail screen, preserving the summary value while loading.
     var displayedPrice: Double {
         detail?.price ?? product.price
     }
 
+    /// Currency code associated with `displayedPrice`.
     var currencyCode: String {
         detail?.currencyCode ?? product.currencyCode
     }
 
+    /// Gallery or thumbnail URLs available for the current product presentation.
     var imageURLs: [URL] {
         if let detail, !detail.imageURLs.isEmpty {
             return detail.imageURLs
@@ -71,34 +81,42 @@ final class ProductDetailViewModel {
         return []
     }
 
+    /// Shipping information shown in the detail screen.
     var shipping: ShippingInfo {
         detail?.shipping ?? product.shipping
     }
 
+    /// Attributes rendered by the detail fact grid.
     var displayedAttributes: [ProductAttribute] {
         detail?.attributes ?? product.attributes
     }
 
+    /// External Mercado Libre URL for the current product when available.
     var permalinkURL: URL? {
         detail?.permalinkURL ?? product.permalinkURL
     }
 
+    /// Product condition shown in the summary fact grid.
     var condition: String? {
         detail?.condition ?? product.condition
     }
 
+    /// Available stock shown in the summary fact grid.
     var availableQuantity: Int? {
         detail?.availableQuantity ?? product.availableQuantity
     }
 
+    /// Sold quantity shown in the summary fact grid.
     var soldQuantity: Int? {
         detail?.soldQuantity ?? product.soldQuantity
     }
 
+    /// Warranty string surfaced by the detail payload when available.
     var warranty: String? {
         detail?.warranty
     }
 
+    /// Long-form description surfaced by the detail payload when available.
     var descriptionText: String? {
         detail?.description
     }

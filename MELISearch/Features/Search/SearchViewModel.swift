@@ -8,10 +8,15 @@ import OSLog
 final class SearchViewModel {
     /// View state rendered by the search screen.
     enum State: Equatable {
+        /// No query has been submitted yet.
         case idle
+        /// A repository search request is in flight.
         case loading
+        /// The latest search returned one or more products.
         case loaded
+        /// The latest search completed successfully but returned no products.
         case empty
+        /// The latest search failed and produced a domain error.
         case failed(AppError)
     }
 
@@ -37,8 +42,11 @@ final class SearchViewModel {
     /// Runtime configuration exposed to the UI for environment messaging.
     let configuration: AppConfiguration
 
+    /// Repository that executes search and detail requests.
     @ObservationIgnored private let repository: ProductRepository
+    /// Date provider injected for deterministic tests and last-updated messaging.
     @ObservationIgnored private let dateProvider: () -> Date
+    /// Monotonic counter used to invalidate stale in-flight search responses.
     @ObservationIgnored private var searchGeneration = 0
 
     /// Creates the search state holder with an injected repository and initial query.
@@ -46,6 +54,7 @@ final class SearchViewModel {
     ///   - repository: Repository that resolves search and detail requests.
     ///   - configuration: Runtime settings exposed to the UI.
     ///   - initialQuery: Initial search text, mainly used by previews or tests.
+    ///   - dateProvider: Clock dependency used to stamp the last successful refresh.
     init(
         repository: ProductRepository,
         configuration: AppConfiguration,
@@ -62,6 +71,7 @@ final class SearchViewModel {
         lastUpdatedAt = nil
     }
 
+    /// Indicates whether the search screen should show a loading state.
     var isLoading: Bool {
         if case .loading = state {
             return true
@@ -108,6 +118,7 @@ final class SearchViewModel {
     }
 
     /// Replays the most recent successful submission for pull-to-refresh and retries.
+    /// The view model restores the stored query before delegating back to `search()`.
     func repeatLastSearch() async {
         guard !lastSubmittedQuery.isEmpty else {
             return
@@ -124,6 +135,7 @@ final class SearchViewModel {
         await search()
     }
 
+    /// Clears search-derived state and returns the screen to its initial idle presentation.
     private func resetToIdle() {
         searchGeneration &+= 1
         results = []
