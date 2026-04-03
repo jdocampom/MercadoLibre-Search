@@ -1,6 +1,6 @@
 //
 //  MELISearchUITests.swift
-//  MeLi-MELISearchUITests
+//  MeLi-LiteUITests
 //
 //  Created by Juan Diego Ocampo on 4/2/26.
 //
@@ -8,49 +8,73 @@
 import XCTest
 
 nonisolated final class MELISearchUITests: XCTestCase {
-
     nonisolated override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    nonisolated override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
-    func testDemoSearchShowsResultAndDetail() throws {
-        let app = XCUIApplication()
+    func testSearchNavigatesToProductDetail() throws {
+        let app = launchDemoApp()
+        performSearch("iPhone", in: app)
+
+        let resultRow = app.element(withID: "productRow_DEMO-IPHONE-15-PRO")
+        XCTAssertTrue(resultRow.waitForExistence(timeout: 5))
+        resultRow.tap()
+
+        XCTAssertTrue(app.element(withID: "productDetailScreen_DEMO-IPHONE-15-PRO").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.element(withID: "productDetailShippingCard").waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testTypedSearchShowsMatchingDemoResult() throws {
+        let app = launchDemoApp()
+        performSearch("Kindle", in: app)
+
+        XCTAssertTrue(app.element(withID: "productRow_DEMO-KINDLE-PAPERWHITE").waitForExistence(timeout: 5))
+        XCTAssertFalse(app.element(withID: "productRow_DEMO-IPHONE-15-PRO").exists)
+    }
+
+}
+
+private extension MELISearchUITests {
+    @MainActor
+    func launchDemoApp() -> XCUIApplication {
+        let app = configuredDemoApp()
         app.launch()
-
-        let searchDockButton = app.buttons["searchTextField"]
-        XCTAssertTrue(searchDockButton.waitForExistence(timeout: 10))
-
-        searchDockButton.tap()
-
-        let searchField = app.searchFields.firstMatch
-        XCTAssertTrue(searchField.waitForExistence(timeout: 3))
-        searchField.typeText("iPhone")
-        app.buttons["searchButton"].tap()
-
-        let productTitle = app.staticTexts["iPhone 15 Pro 256 GB Natural Titanium"]
-        XCTAssertTrue(productTitle.waitForExistence(timeout: 3))
-
-        productTitle.tap()
-
-        let detailPrice = app.staticTexts["ARS 1,699,999.00"]
-        XCTAssertTrue(detailPrice.waitForExistence(timeout: 3))
+        return app
     }
 
     @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+    func configuredDemoApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        app.launchEnvironment["MELI_DATA_SOURCE"] = "demo"
+        app.launchEnvironment["MELI_SITE_ID"] = "MCO"
+        app.launchEnvironment["MELI_ACCESS_TOKEN"] = ""
+        app.launchEnvironment["MELI_APP_ID"] = ""
+        app.launchEnvironment["MELI_CLIENT_SECRET"] = ""
+        app.launchEnvironment["MELI_REDIRECT_URL"] = ""
+        return app
+    }
+
+    @MainActor
+    func performSearch(_ query: String, in app: XCUIApplication) {
+        let searchField = app.element(withID: "searchTextField")
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+        searchField.tap()
+        searchField.typeText(query)
+
+        let searchButton = app.element(withID: "searchButton")
+        XCTAssertTrue(searchButton.waitForExistence(timeout: 5))
+        searchButton.tap()
+    }
+}
+
+private extension XCUIApplication {
+    func element(withID identifier: String) -> XCUIElement {
+        descendants(matching: .any)[identifier].firstMatch
     }
 }

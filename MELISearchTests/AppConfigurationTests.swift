@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-@testable import MeLi_Lite
+@testable import MELISearch
 
 @Suite("App Configuration")
 struct AppConfigurationTests {

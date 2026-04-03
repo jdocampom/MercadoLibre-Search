@@ -55,6 +55,7 @@ struct ProductDetailScreen: View {
             }
             .padding(20)
         }
+        .accessibilityIdentifier("productDetailScreen_\(viewModel.product.id)")
         .background(backgroundGradient.ignoresSafeArea())
         .navigationTitle(viewModel.displayedTitle)
         .modifier(ProductDetailNavigationTitleStyle())
@@ -124,6 +125,7 @@ private extension ProductDetailScreen {
 
             Text(viewModel.displayedPrice.formatted(.currency(code: viewModel.currencyCode)))
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .accessibilityIdentifier("productDetailPrice")
 
             if case .loading = viewModel.state {
                 ProgressView("Loading product details…")
@@ -149,6 +151,7 @@ private extension ProductDetailScreen {
         }
         .padding(22)
         .background(sectionBackground)
+        .accessibilityIdentifier("productDetailSummaryCard")
     }
 
     var shippingCard: some View {
@@ -168,6 +171,7 @@ private extension ProductDetailScreen {
         }
         .padding(22)
         .background(sectionBackground)
+        .accessibilityIdentifier("productDetailShippingCard")
     }
 
     var attributesSection: some View {

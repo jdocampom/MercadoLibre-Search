@@ -20,12 +20,14 @@ nonisolated final class MELISearchUITestsLaunchTests: XCTestCase {
     @MainActor
     func testLaunch() throws {
         let app = XCUIApplication()
+        app.launchEnvironment["MELI_DATA_SOURCE"] = "demo"
+        app.launchEnvironment["MELI_ACCESS_TOKEN"] = ""
+        app.launchEnvironment["MELI_APP_ID"] = ""
+        app.launchEnvironment["MELI_CLIENT_SECRET"] = ""
+        app.launchEnvironment["MELI_REDIRECT_URL"] = ""
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertTrue(app.descendants(matching: .any)["searchTextField"].waitForExistence(timeout: 5))
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"

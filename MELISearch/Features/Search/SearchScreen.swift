@@ -340,6 +340,7 @@ private extension SearchScreen {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(24)
         .background(cardBackground)
+        .accessibilityIdentifier("searchIdleState")
     }
 
     var loadingState: some View {
@@ -366,6 +367,7 @@ private extension SearchScreen {
         } description: {
             Text("Try a broader query or use one of the suggestions from the home state.")
         }
+        .accessibilityIdentifier("searchEmptyState")
     }
 
     /// Builds the search failure state with retry affordances and recovery guidance.
@@ -395,6 +397,7 @@ private extension SearchScreen {
         .frame(maxWidth: .infinity)
         .padding(24)
         .background(cardBackground)
+        .accessibilityIdentifier("searchErrorState")
     }
 
     var resultsState: some View {
@@ -402,10 +405,12 @@ private extension SearchScreen {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(viewModel.results.count) Results")
                     .font(.headline)
+                    .accessibilityIdentifier("resultsCountLabel")
 
                 Text("Last query: \(viewModel.lastSubmittedQuery)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("resultsQueryLabel")
             }
 
             LazyVStack(spacing: 16) {
@@ -418,6 +423,7 @@ private extension SearchScreen {
                 }
             }
         }
+        .accessibilityIdentifier("searchResultsState")
     }
 
     var backgroundGradient: some View {
