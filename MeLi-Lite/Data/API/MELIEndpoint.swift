@@ -1,7 +1,7 @@
 import Foundation
 
 /// Mercado Libre endpoints supported by the application.
-enum MercadoLibreEndpoint {
+enum MELIEndpoint {
     /// Search endpoint scoped to a specific Mercado Libre site.
     case search(query: String, siteID: String)
     /// Item detail endpoint for a selected listing identifier.

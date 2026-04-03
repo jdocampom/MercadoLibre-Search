@@ -6,7 +6,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
     case missingAccessToken
     /// Live mode is missing the OAuth app id, client secret, or redirect URL.
     case missingOAuthConfiguration
-    /// The callback URL or authorization code could not be parsed.
+    /// The callback URL could not be parsed or did not match the current OAuth attempt.
     case invalidAuthorizationCallback
     /// The app could not build a valid Mercado Libre endpoint URL.
     case invalidURL
@@ -52,7 +52,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         case .missingOAuthConfiguration:
             return "OAuth is not fully configured for live Mercado Libre requests."
         case .invalidAuthorizationCallback:
-            return "The callback URL or authorization code could not be understood."
+            return "The callback URL could not be validated for this OAuth attempt."
         case .invalidURL, .invalidResponse:
             return "The app could not understand the server response."
         case .unauthorized:
@@ -89,7 +89,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         case .missingOAuthConfiguration:
             return "Configure MELI_APP_ID, MELI_CLIENT_SECRET, and MELI_REDIRECT_URL, or switch back to demo mode."
         case .invalidAuthorizationCallback:
-            return "Paste the full callback URL returned by Mercado Libre, or paste the authorization code only."
+            return "Open the authorization page again from the app, then paste the full callback URL returned by that same attempt."
         case .unauthorized, .forbidden:
             return "Refresh your credentials or switch the app back to demo mode."
         case .transport(.notConnectedToInternet):
@@ -111,7 +111,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         case .missingOAuthConfiguration:
             return "Missing MELI_APP_ID, MELI_CLIENT_SECRET, or MELI_REDIRECT_URL while trying to use OAuth."
         case .invalidAuthorizationCallback:
-            return "Failed to parse an authorization code from the provided callback input."
+            return "Failed to validate the provided callback URL against the registered redirect and pending OAuth state."
         case .invalidURL:
             return "Failed to construct a valid Mercado Libre URL request."
         case .invalidResponse:

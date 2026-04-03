@@ -6,9 +6,9 @@ struct OAuthSetupSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     /// Shared session object that drives Mercado Libre OAuth state and token exchange.
-    @Bindable var authenticationSession: MercadoLibreAuthenticationSession
+    @Bindable var authenticationSession: MELIAuthenticationSession
 
-    /// Full callback URL or raw code pasted by the user after browser authorization.
+    /// Full callback URL pasted by the user after browser authorization.
     @State private var callbackInput = ""
     /// Local validation or submission errors shown inline within the sheet.
     @State private var localErrorMessage: String?
@@ -37,7 +37,7 @@ struct OAuthSetupSheet: View {
                     }
                     .buttonStyle(.borderedProminent)
 
-                    Text("Approve the app in the browser, then paste the full callback URL returned by your redirect page. If necessary, you can also paste the raw authorization code only.")
+                    Text("Approve the app in the browser, then paste the full callback URL returned by your redirect page. The app validates the redirect origin and OAuth state before exchanging the code.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -51,6 +51,22 @@ struct OAuthSetupSheet: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(callbackInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSubmitting)
+                }
+
+                if authenticationSession.canValidateCurrentSession {
+                    Section("Validate Session") {
+                        Text(authenticationSession.sessionValidationTitle)
+                            .font(.headline)
+
+                        Text(authenticationSession.sessionValidationMessage)
+                            .foregroundStyle(.secondary)
+
+                        Button(authenticationSession.isValidatingCurrentSession ? "Validating…" : "Check /users/me") {
+                            validateSession()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isSubmitting || authenticationSession.isValidatingCurrentSession)
+                    }
                 }
 
                 if authenticationSession.isAuthenticated {
@@ -122,6 +138,21 @@ private extension OAuthSetupSheet {
                 if didAuthorize {
                     dismiss()
                 } else if let latestError = authenticationSession.latestError {
+                    localErrorMessage = latestError.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// Confirms the current bearer token against `/users/me` and keeps any failure visible in the sheet.
+    func validateSession() {
+        localErrorMessage = nil
+
+        Task {
+            let didValidate = await authenticationSession.validateCurrentSession()
+
+            await MainActor.run {
+                if !didValidate, let latestError = authenticationSession.latestError {
                     localErrorMessage = latestError.localizedDescription
                 }
             }

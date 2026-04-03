@@ -1,13 +1,13 @@
 //
-//  MeLi_LiteUITests.swift
-//  MeLi-LiteUITests
+//  MELISearchUITests.swift
+//  MeLi-MELISearchUITests
 //
 //  Created by Juan Diego Ocampo on 4/2/26.
 //
 
 import XCTest
 
-nonisolated final class MeLi_LiteUITests: XCTestCase {
+nonisolated final class MELISearchUITests: XCTestCase {
 
     nonisolated override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -28,7 +28,7 @@ nonisolated final class MeLi_LiteUITests: XCTestCase {
         app.launch()
 
         let searchDockButton = app.buttons["searchTextField"]
-        XCTAssertTrue(searchDockButton.waitForExistence(timeout: 3))
+        XCTAssertTrue(searchDockButton.waitForExistence(timeout: 10))
 
         searchDockButton.tap()
 

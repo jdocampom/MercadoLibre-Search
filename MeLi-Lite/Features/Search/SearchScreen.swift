@@ -5,7 +5,9 @@ import SwiftUI
 struct SearchScreen: View {
     @Bindable var viewModel: SearchViewModel
     @Bindable var connectivityMonitor: ConnectivityMonitor
-    @Bindable var authenticationSession: MercadoLibreAuthenticationSession
+    @Bindable var authenticationSession: MELIAuthenticationSession
+    /// Handles runtime switching between demo fixtures and the live API.
+    let onSelectDataSource: (AppConfiguration.DataSource) -> Void
     @FocusState private var isSearchFieldFocused: Bool
     @State private var isOAuthSheetPresented = false
 
@@ -34,6 +36,7 @@ struct SearchScreen: View {
         .modifier(SearchNavigationTitleStyle())
         .toolbar {
             searchFocusToolbarItem
+            dataSourceToolbarItem
         }
         .refreshable {
             await viewModel.repeatLastSearch()
@@ -161,6 +164,44 @@ private extension SearchScreen {
         .accessibilityLabel(isSearchFieldFocused ? "Dismiss search keyboard" : "Focus search field")
     }
 
+    @ToolbarContentBuilder
+    var dataSourceToolbarItem: some ToolbarContent {
+        #if os(macOS)
+        ToolbarItem(placement: .automatic) {
+            dataSourceMenu
+        }
+        #else
+        ToolbarItem(placement: .topBarTrailing) {
+            dataSourceMenu
+        }
+        #endif
+    }
+
+    var dataSourceMenu: some View {
+        Menu {
+            Button {
+                onSelectDataSource(.demo)
+            } label: {
+                Label("Use Demo Data", systemImage: viewModel.configuration.isUsingDemoData ? "checkmark" : "shippingbox")
+            }
+            .disabled(viewModel.configuration.isUsingDemoData)
+
+            Button {
+                onSelectDataSource(.live)
+            } label: {
+                Label("Use Live API", systemImage: viewModel.configuration.isUsingDemoData ? "antenna.radiowaves.left.and.right" : "checkmark")
+            }
+            .disabled(!viewModel.configuration.isUsingDemoData)
+        } label: {
+            Label(
+                viewModel.configuration.isUsingDemoData ? "Demo" : "Live",
+                systemImage: viewModel.configuration.isUsingDemoData ? "shippingbox" : "antenna.radiowaves.left.and.right"
+            )
+        }
+        .accessibilityIdentifier("dataSourceMenu")
+        .accessibilityLabel(viewModel.configuration.isUsingDemoData ? "Demo data menu" : "Live API menu")
+    }
+
     var shouldShowConnectivityBanner: Bool {
         !viewModel.configuration.isUsingDemoData && connectivityMonitor.status == .disconnected
     }
@@ -201,11 +242,34 @@ private extension SearchScreen {
                 }
                 .buttonStyle(.borderedProminent)
 
+                if authenticationSession.canValidateCurrentSession {
+                    Button(authenticationSession.isValidatingCurrentSession ? "Validating…" : "Validate Session") {
+                        Task {
+                            await authenticationSession.validateCurrentSession()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(authenticationSession.isValidatingCurrentSession)
+                }
+
                 if authenticationSession.isAuthenticated {
                     Button("Forget Session", role: .destructive) {
                         authenticationSession.signOut()
                     }
                     .buttonStyle(.bordered)
+                }
+            }
+
+            if authenticationSession.shouldShowSessionValidationStatus {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(authenticationSession.sessionValidationTitle)
+                        .font(.subheadline.weight(.semibold))
+
+                    Text(authenticationSession.sessionValidationMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         }

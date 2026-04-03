@@ -11,7 +11,7 @@ enum LiveProductRepository {
         configuration: AppConfiguration,
         accessTokenProvider: @escaping @MainActor () async throws -> String
     ) -> ProductRepository {
-        let client = MercadoLibreAPIClient(
+        let client = MELIAPIClient(
             configuration: configuration,
             accessTokenProvider: accessTokenProvider
         )

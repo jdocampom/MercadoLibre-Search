@@ -34,7 +34,7 @@ struct AppConfiguration: Equatable, Sendable {
             .map { $0.lowercased() }
             .flatMap(DataSource.init(rawValue:))
         let oauthAuthorizationHost = environment["MELI_AUTH_HOST"]?.trimmedNonEmptyValue
-            ?? MercadoLibreOAuthConfiguration.defaultAuthorizationHost(forSiteID: siteID)
+            ?? MELIOAuthConfiguration.defaultAuthorizationHost(forSiteID: siteID)
         let dataSource: DataSource
 
         switch requestedSource {
@@ -65,7 +65,7 @@ struct AppConfiguration: Equatable, Sendable {
         oauthClientID: nil,
         oauthClientSecret: nil,
         oauthRedirectURL: nil,
-        oauthAuthorizationHost: MercadoLibreOAuthConfiguration.defaultAuthorizationHost(forSiteID: "MCO")
+        oauthAuthorizationHost: MELIOAuthConfiguration.defaultAuthorizationHost(forSiteID: "MCO")
     )
 
     /// Indicates whether the app should avoid live network calls.
@@ -79,7 +79,7 @@ struct AppConfiguration: Equatable, Sendable {
     }
 
     /// Fully resolved OAuth settings when the required variables are available.
-    var oauthConfiguration: MercadoLibreOAuthConfiguration? {
+    var oauthConfiguration: MELIOAuthConfiguration? {
         guard
             let oauthClientID,
             let oauthClientSecret,
@@ -89,7 +89,7 @@ struct AppConfiguration: Equatable, Sendable {
             return nil
         }
 
-        return MercadoLibreOAuthConfiguration(
+        return MELIOAuthConfiguration(
             clientID: oauthClientID,
             clientSecret: oauthClientSecret,
             redirectURL: oauthRedirectURL,
@@ -112,6 +112,21 @@ struct AppConfiguration: Equatable, Sendable {
         }
 
         return "Live Mercado Libre requests are enabled for site \(siteID), but OAuth is not fully configured yet."
+    }
+
+    /// Returns a copy of the current configuration with a different runtime data source.
+    /// - Parameter dataSource: Data source that should become active for the new configuration copy.
+    /// - Returns: A configuration that preserves all OAuth and site settings while changing the backend mode.
+    func overriding(dataSource: DataSource) -> AppConfiguration {
+        AppConfiguration(
+            dataSource: dataSource,
+            siteID: siteID,
+            accessToken: accessToken,
+            oauthClientID: oauthClientID,
+            oauthClientSecret: oauthClientSecret,
+            oauthRedirectURL: oauthRedirectURL,
+            oauthAuthorizationHost: oauthAuthorizationHost
+        )
     }
 }
 

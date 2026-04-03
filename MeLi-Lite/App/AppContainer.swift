@@ -6,7 +6,7 @@ struct AppContainer {
     let configuration: AppConfiguration
 
     /// The shared OAuth session used by live Mercado Libre flows.
-    let authenticationSession: MercadoLibreAuthenticationSession
+    let authenticationSession: MELIAuthenticationSession
     
     /// The product data source resolved from the active configuration.
     let productRepository: ProductRepository
@@ -21,7 +21,7 @@ struct AppContainer {
     /// - Returns: A fully wired dependency container for the app.
     ///
     static func main(configuration: AppConfiguration = .current) -> AppContainer {
-        let authenticationSession = MercadoLibreAuthenticationSession(configuration: configuration)
+        let authenticationSession = MELIAuthenticationSession(configuration: configuration)
         let repository = configuration.isUsingDemoData
             ? DemoProductRepository.makeRepository()
             : LiveProductRepository.makeRepository(

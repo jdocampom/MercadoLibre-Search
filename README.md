@@ -11,7 +11,8 @@ MeLi Lite is a SwiftUI iOS challenge app that implements product search and prod
 - Demo placeholders are local-only, so the default experience also works in sandboxed environments without outbound network access.
 - Live API wiring prepared through environment variables, `MELI_ACCESS_TOKEN`, or interactive OAuth.
 - Local OAuth bootstrap that can open Mercado Libre authorization, accept a pasted callback URL, exchange tokens, persist them in Keychain, and refresh them automatically.
-- Architecture and AI usage documentation under [`docs/ARCHITECTURE.md`](/Users/juandiegoocampo/Downloads/MeLi-Lite/docs/ARCHITECTURE.md) and [`docs/AI_USAGE.md`](/Users/juandiegoocampo/Downloads/MeLi-Lite/docs/AI_USAGE.md).
+- Runtime toolbar switch to move between `demo` and `live` without editing the scheme while the app is running.
+- AI usage documentation under [`docs/AI_USAGE.md`](/Users/juandiegoocampo/Downloads/MeLi-Lite/docs/AI_USAGE.md).
 
 ## Live API note
 
@@ -25,7 +26,7 @@ Because of that, the app defaults to demo mode and keeps the live integration be
 
 ## OAuth support
 
-The current live integration is centered around [`MercadoLibreAuthenticationSession.swift`](/Users/juandiegoocampo/Downloads/MeLi-Lite/MeLi-Lite/Core/MercadoLibreAuthenticationSession.swift). That session object is created at app startup, injected through [`AppContainer.swift`](/Users/juandiegoocampo/Downloads/MeLi-Lite/MeLi-Lite/App/AppContainer.swift), and used by the live repository before every authenticated request.
+The current live integration is centered around [`MELIAuthenticationSession.swift`](/Users/juandiegoocampo/Downloads/MeLi-Lite/MeLi-Lite/Core/MELIAuthenticationSession.swift). That session object is created at app startup, injected through [`AppContainer.swift`](/Users/juandiegoocampo/Downloads/MeLi-Lite/MeLi-Lite/App/AppContainer.swift), and used by the live repository before every authenticated request.
 
 It supports three live credential sources:
 
@@ -37,7 +38,7 @@ It supports three live credential sources:
 
 ```mermaid
 flowchart TD
-    A["App Launch"] --> B["AppContainer creates MercadoLibreAuthenticationSession"]
+    A["App Launch"] --> B["AppContainer creates MELIAuthenticationSession"]
     B --> C{"MELI_DATA_SOURCE == demo?"}
     C -- Yes --> D["Use Demo Repository"]
     C -- No --> E{"MELI_ACCESS_TOKEN present?"}
@@ -117,6 +118,15 @@ For local OAuth bootstrap, the app can:
 5. Remove `MELI_ACCESS_TOKEN` if you want to exercise the interactive OAuth flow end-to-end.
 6. Launch the app and use the OAuth sheet to authorize and paste the callback URL.
 
+### In-app demo/live switch
+
+The search screen includes a toolbar menu labeled `Demo` or `Live`.
+
+- `Use Demo Data` rebuilds the app container with fixture-backed repositories.
+- `Use Live API` rebuilds the app container with the live repository and the current OAuth/environment configuration.
+- The switch resets navigation and search state so the screen reflects the newly selected backend immediately.
+- The selection is runtime-only for the current launch. Restarting the app falls back to the scheme/environment configuration again.
+
 ### Important limitation
 
 The current redirect flow is manual on purpose.
@@ -133,18 +143,24 @@ scripts/check_live_env.sh
 
 The script exits early when demo mode is active and reports a clearer failure when Mercado Libre rejects the token with `401` or `403`.
 
-## Runtime architecture
+## Application architecture
+
+This diagram shows the main runtime dependencies from the app entry point down to the live Mercado Libre services.
 
 ```mermaid
 flowchart LR
-    A["ContentView"] --> B["SearchScreen"]
-    B --> C["SearchViewModel"]
-    C --> D["ProductRepository"]
-    D --> E["MercadoLibreAPIClient"]
-    E --> F["MercadoLibreAuthenticationSession"]
-    F --> G["KeychainStore"]
-    F --> H["Mercado Libre OAuth /oauth/token"]
-    E --> I["Mercado Libre API /sites, /items"]
+    A["MeLiLiteApp"] --> B["ContentView"]
+    B --> C["AppContainer"]
+    C --> D["SearchScreen"]
+    D --> E["SearchViewModel"]
+    E --> F["ProductRepository"]
+    F --> G["DemoProductRepository"]
+    F --> H["LiveProductRepository"]
+    H --> I["MELIAPIClient"]
+    I --> J["MELIAuthenticationSession"]
+    J --> K["KeychainStore"]
+    J --> L["Mercado Libre OAuth /oauth/token"]
+    I --> M["Mercado Libre API /sites, /items"]
 ```
 
 ## Architecture
@@ -157,7 +173,102 @@ The app follows MVVM per feature:
 - `Data`: live Mercado Libre client, DTO mapping, live repository factory and demo repository.
 - `Core`: configuration, logging, OAuth session management, Keychain persistence and unified error model.
 
-More detail is documented in [`docs/ARCHITECTURE.md`](/Users/juandiegoocampo/Downloads/MeLi-Lite/docs/ARCHITECTURE.md).
+### Composition root
+
+`ContentView` owns the active `AppContainer` and recreates it when the runtime data source changes between `demo` and `live`.
+
+```mermaid
+flowchart TD
+    A["ContentView"] --> B["AppConfiguration"]
+    A --> C["MELIAuthenticationSession"]
+    A --> D["AppContainer"]
+    D --> E["ProductRepository"]
+    D --> F["SearchViewModel"]
+    D --> G["ConnectivityMonitor"]
+    A --> H{"Toolbar switch"}
+    H -- "Use Demo Data" --> I["Rebuild container with demo repository"]
+    H -- "Use Live API" --> J["Rebuild container with live repository"]
+```
+
+### Layer overview
+
+```mermaid
+flowchart LR
+    A["SearchScreen"] --> B["SearchViewModel"]
+    C["ProductDetailScreen"] --> D["ProductDetailViewModel"]
+    B --> E["ProductRepository"]
+    D --> E
+    E --> F["LiveProductRepository"]
+    E --> G["DemoProductRepository"]
+    F --> H["MELIAPIClient"]
+    H --> I["Mercado Libre API"]
+```
+
+### Presentation
+
+- `SearchScreen` renders the search form, banners, OAuth entry points, and result states.
+- `ProductDetailScreen` renders product details and progressively enriches the UI after the secondary fetch finishes.
+- Root-owned SwiftUI state keeps the flow stable when the view hierarchy refreshes.
+
+### View Models
+
+- `SearchViewModel` owns query state, result state, retry state, and the last submitted query.
+- `ProductDetailViewModel` starts from a `ProductSummary`, loads the richer `ProductDetail`, and preserves summary data if the detail request fails.
+- Both view models are `@Observable` and `@MainActor` because they coordinate UI-facing state.
+
+### Domain
+
+- `ProductSummary`, `ProductDetail`, `ProductAttribute`, and `ShippingInfo` are plain app-facing models.
+- `ProductRepository` hides whether data came from fixtures or from the live Mercado Libre API.
+
+### Data
+
+- `MELIAPIClient` performs async requests and centralizes HTTP, decoding, and transport error mapping.
+- `LiveProductRepository` exposes the Mercado Libre-backed repository contract.
+- `DemoProductRepository` provides deterministic local data for previews, tests, and offline/demo evaluation.
+
+### Error handling
+
+Developer-facing consistency:
+
+- A single `AppError` type maps configuration, transport, HTTP, and decoding failures.
+- `OSLog` categories separate networking, authentication, and UI diagnostics.
+- DTO mapping is covered by tests to reduce silent contract drift.
+
+User-facing consistency:
+
+- Search and detail screens both expose explicit empty, loading, and retry states.
+- Summary data remains visible on the detail screen even if the secondary fetch fails.
+- Demo mode is explicit in the UI to avoid misleading the evaluator.
+
+### State preservation
+
+- Search query, last submitted query, and results live in a root-owned `SearchViewModel`.
+- Navigation uses value-based `NavigationStack`, so returning from detail preserves the search results.
+- Detail responses are cached in the live API client to avoid unnecessary repeated calls when revisiting the same item.
+
+### Why not Core Data
+
+The challenge does not require offline persistence, background sync, or local editing. Adding Core Data here would increase complexity without improving the core evaluation points, so the app keeps data ephemeral and focused on search/detail responsiveness.
+
+### Request sequence
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant SearchScreen
+    participant SearchViewModel
+    participant Repository
+    participant API
+
+    User->>SearchScreen: Submit query
+    SearchScreen->>SearchViewModel: search()
+    SearchViewModel->>Repository: searchProducts(query)
+    Repository->>API: GET /sites/{site}/search?q=...
+    API-->>Repository: Search payload
+    Repository-->>SearchViewModel: [ProductSummary]
+    SearchViewModel-->>SearchScreen: loaded state
+```
 
 ## Troubleshooting live auth
 

@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import MeLi_Lite
 
-struct MercadoLibreMappingTests {
+struct MELIMappingTests {
     @Test
     func itemPayloadMapsToSummary() throws {
         let payload = """

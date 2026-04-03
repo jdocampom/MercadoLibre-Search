@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 /// Thin API client responsible for authenticated Mercado Libre requests and response mapping.
-final class MercadoLibreAPIClient {
+final class MELIAPIClient {
     /// Runtime configuration used to resolve credentials and site scope.
     private let configuration: AppConfiguration
     /// Async provider that resolves a valid bearer token before each live request.
@@ -51,7 +51,7 @@ final class MercadoLibreAPIClient {
     /// Sends an authorized request and translates transport or decoding failures into `AppError`.
     /// - Parameter endpoint: API endpoint to request.
     /// - Returns: A decoded payload of the expected type.
-    private func request<T: Decodable>(endpoint: MercadoLibreEndpoint) async throws -> T {
+    private func request<T: Decodable>(endpoint: MELIEndpoint) async throws -> T {
         let accessToken = try await accessTokenProvider()
         let request = try endpoint.makeRequest(accessToken: accessToken)
         AppLogger.networking.debug("Requesting \(request.url?.absoluteString ?? "unknown")")

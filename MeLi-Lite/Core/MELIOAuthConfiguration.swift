@@ -1,7 +1,7 @@
 import Foundation
 
 /// OAuth client settings required to authorize the app against Mercado Libre.
-struct MercadoLibreOAuthConfiguration: Equatable, Sendable {
+struct MELIOAuthConfiguration: Equatable, Sendable {
     /// Mercado Libre application identifier.
     let clientID: String
     /// Mercado Libre application secret used during token exchange and refresh.

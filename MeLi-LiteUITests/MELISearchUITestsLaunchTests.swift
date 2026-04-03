@@ -1,13 +1,13 @@
 //
-//  MeLi_LiteUITestsLaunchTests.swift
-//  MeLi-LiteUITests
+//  MELISearchUITestsLaunchTests.swift
+//  MELISearchUITests
 //
 //  Created by Juan Diego Ocampo on 4/2/26.
 //
 
 import XCTest
 
-nonisolated final class MeLi_LiteUITestsLaunchTests: XCTestCase {
+nonisolated final class MELISearchUITestsLaunchTests: XCTestCase {
 
     nonisolated override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

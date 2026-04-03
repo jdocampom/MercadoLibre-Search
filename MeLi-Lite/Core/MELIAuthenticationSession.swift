@@ -1,11 +1,10 @@
-import CryptoKit
 import Foundation
 import Observation
 import OSLog
 
 /// Manages Mercado Libre OAuth authorization, refresh, and persisted credentials for live API calls.
 @Observable
-@MainActor final class MercadoLibreAuthenticationSession {
+@MainActor final class MELIAuthenticationSession {
     /// High-level authentication states exposed to the UI.
     enum Status: Equatable {
         /// The app is explicitly running with demo data only.
@@ -28,13 +27,38 @@ import OSLog
         case failed(AppError)
     }
 
+    /// Outcome of an explicit `/users/me` check used to verify which account a bearer token belongs to.
+    enum SessionValidation: Equatable {
+        /// No diagnostic request has been made yet for the current live session.
+        case idle
+        /// The app is currently validating the resolved bearer token against `/users/me`.
+        case validating
+        /// Mercado Libre confirmed the active session and returned the current user.
+        case validated(ValidatedUser)
+        /// Mercado Libre rejected or failed the diagnostic request.
+        case failed(AppError)
+    }
+
+    /// Minimal `/users/me` payload used to confirm the authenticated account behind the current token.
+    struct ValidatedUser: Decodable, Equatable, Sendable {
+        let id: Int
+        let nickname: String?
+        let siteID: String?
+
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case nickname
+            case siteID = "site_id"
+        }
+    }
+
     /// The application's configuration, providing access to OAuth parameters,
     /// environment flags (such as demo mode), and any preset access tokens.
     private let configuration: AppConfiguration
     
     /// The OAuth configuration for Mercado Libre if available, containing endpoints and credentials 
     /// necessary for performing the OAuth authorization code flow.
-    private let oauthConfiguration: MercadoLibreOAuthConfiguration?
+    private let oauthConfiguration: MELIOAuthConfiguration?
     
     /// A secure storage interface for saving, loading, and deleting persisted credentials related
     /// to Mercado Libre OAuth sessions.
@@ -53,6 +77,9 @@ import OSLog
     
     /// The most recent error encountered during an OAuth operation or authentication flow.
     private(set) var latestError: AppError?
+
+    /// Latest explicit validation result for the current live session.
+    private(set) var sessionValidation: SessionValidation = .idle
 
     @ObservationIgnored private var persistedCredentials: StoredCredentials?
     @ObservationIgnored private var pendingAuthorization: PendingAuthorization?
@@ -110,6 +137,29 @@ import OSLog
         }
     }
 
+    /// Indicates whether the current runtime has enough state to validate `/users/me`.
+    var canValidateCurrentSession: Bool {
+        !configuration.isUsingDemoData && isAuthenticated
+    }
+
+    /// Indicates whether an explicit `/users/me` validation request is in flight.
+    var isValidatingCurrentSession: Bool {
+        if case .validating = sessionValidation {
+            return true
+        }
+
+        return false
+    }
+
+    /// Indicates whether the UI should surface the latest `/users/me` validation result.
+    var shouldShowSessionValidationStatus: Bool {
+        if case .idle = sessionValidation {
+            return false
+        }
+
+        return true
+    }
+
     /// Short status label rendered in banners and sheets.
     var statusTitle: String {
         switch status {
@@ -144,9 +194,9 @@ import OSLog
         case .missingConfiguration:
             return "Set MELI_APP_ID, MELI_CLIENT_SECRET, and MELI_REDIRECT_URL to complete the OAuth flow."
         case .signedOut:
-            return "Open the Mercado Libre authorization page, then paste the full callback URL returned by your redirect."
+            return "Open the Mercado Libre authorization page, then paste the full callback URL returned by the same authorization attempt."
         case .authorizing:
-            return "The browser can now request access. After approving the app, come back and paste the callback URL."
+            return "The browser can now request access. After approving the app, come back and paste the full callback URL so the app can validate state."
         case .exchangingCode:
             return "The app is exchanging the authorization code for a live access token."
         case .refreshing:
@@ -161,6 +211,42 @@ import OSLog
             }
 
             return "Live requests are authorized with a stored Mercado Libre session."
+        case let .failed(error):
+            return error.localizedDescription
+        }
+    }
+
+    /// Short label rendered for the `/users/me` validation result.
+    var sessionValidationTitle: String {
+        switch sessionValidation {
+        case .idle:
+            return "Session Not Checked"
+        case .validating:
+            return "Validating Session"
+        case .validated:
+            return "Session Confirmed"
+        case .failed:
+            return "Session Validation Failed"
+        }
+    }
+
+    /// Human-readable explanation of the latest `/users/me` validation result.
+    var sessionValidationMessage: String {
+        switch sessionValidation {
+        case .idle:
+            return "Run /users/me to confirm which Mercado Libre account the current bearer token belongs to."
+        case .validating:
+            return "Checking /users/me with the current bearer token."
+        case let .validated(user):
+            if let nickname = user.nickname, !nickname.isEmpty {
+                if let siteID = user.siteID, !siteID.isEmpty {
+                    return "/users/me resolved Mercado Libre user \(user.id) (\(nickname)) for site \(siteID)."
+                }
+
+                return "/users/me resolved Mercado Libre user \(user.id) (\(nickname))."
+            }
+
+            return "/users/me resolved Mercado Libre user \(user.id)."
         case let .failed(error):
             return error.localizedDescription
         }
@@ -211,7 +297,7 @@ import OSLog
         }
     }
 
-    /// Builds the Mercado Libre authorization URL for the current PKCE challenge.
+    /// Builds the Mercado Libre authorization URL for the current OAuth attempt.
     /// - Returns: A browser-ready authorization URL.
     /// - Throws: `AppError.missingOAuthConfiguration` when the local OAuth settings are incomplete.
     func authorizationURL() throws -> URL {
@@ -222,6 +308,7 @@ import OSLog
 
         let pendingAuthorization = PendingAuthorization()
         self.pendingAuthorization = pendingAuthorization
+        sessionValidation = .idle
         latestError = nil
         status = .authorizing
 
@@ -230,9 +317,7 @@ import OSLog
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "client_id", value: oauthConfiguration.clientID),
             URLQueryItem(name: "redirect_uri", value: oauthConfiguration.redirectURL.absoluteString),
-            URLQueryItem(name: "state", value: pendingAuthorization.state),
-            URLQueryItem(name: "code_challenge", value: pendingAuthorization.codeChallenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256")
+            URLQueryItem(name: "state", value: pendingAuthorization.state)
         ]
 
         guard let url = components?.url else {
@@ -242,8 +327,8 @@ import OSLog
         return url
     }
 
-    /// Completes the OAuth flow from a pasted callback URL or a raw authorization code.
-    /// - Parameter callbackInput: Full redirect URL returned by Mercado Libre, or the raw `code` value.
+    /// Completes the OAuth flow from a pasted callback URL returned by the current authorization attempt.
+    /// - Parameter callbackInput: Full redirect URL returned by Mercado Libre for the current browser flow.
     /// - Returns: `true` when token exchange succeeded and the session was persisted.
     @discardableResult
     func completeAuthorization(from callbackInput: String) async -> Bool {
@@ -265,6 +350,7 @@ import OSLog
         persistedCredentials = nil
         currentUserID = nil
         latestError = nil
+        sessionValidation = .idle
 
         do {
             try keychainStore.delete()
@@ -311,8 +397,59 @@ import OSLog
         throw AppError.missingAccessToken
     }
 
+    /// Confirms the current bearer token by calling Mercado Libre's `/users/me` endpoint.
+    /// - Returns: `true` when Mercado Libre accepts the current bearer token and returns a user payload.
+    @discardableResult
+    func validateCurrentSession() async -> Bool {
+        guard canValidateCurrentSession else {
+            return false
+        }
+
+        sessionValidation = .validating
+        latestError = nil
+
+        do {
+            let accessToken = try await validAccessToken()
+            var request = URLRequest(url: URL(string: "https://api.mercadolibre.com/users/me")!)
+            request.timeoutInterval = 20
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await urlSession.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AppError.invalidResponse
+            }
+
+            guard 200 ..< 300 ~= httpResponse.statusCode else {
+                let mappedError = mapStatusCode(httpResponse.statusCode)
+                let responseBody = String(data: data, encoding: .utf8) ?? "<non-UTF8 body>"
+                AppLogger.authentication.error(
+                    "Session validation failed: \(mappedError.developerDescription). Response body: \(responseBody, privacy: .public)"
+                )
+                throw mappedError
+            }
+
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let user = try decoder.decode(ValidatedUser.self, from: data)
+
+            currentUserID = user.id
+            sessionValidation = .validated(user)
+            AppLogger.authentication.info(
+                "Validated Mercado Libre session for user \(String(user.id), privacy: .public)"
+            )
+            return true
+        } catch {
+            let appError = AppError.from(error)
+            latestError = appError
+            sessionValidation = .failed(appError)
+            AppLogger.authentication.error("Session validation failed: \(appError.developerDescription)")
+            return false
+        }
+    }
+
     /// Exchanges the current authorization code for access and refresh tokens.
-    /// - Parameter callbackInput: Full callback URL or raw authorization code supplied by the user.
+    /// - Parameter callbackInput: Full callback URL supplied by the user for the current browser flow.
     private func exchangeAuthorizationCode(using callbackInput: String) async throws {
         guard let oauthConfiguration else {
             throw AppError.missingOAuthConfiguration
@@ -329,8 +466,7 @@ import OSLog
                 URLQueryItem(name: "client_id", value: oauthConfiguration.clientID),
                 URLQueryItem(name: "client_secret", value: oauthConfiguration.clientSecret),
                 URLQueryItem(name: "code", value: authorizationCode.code),
-                URLQueryItem(name: "redirect_uri", value: oauthConfiguration.redirectURL.absoluteString),
-                URLQueryItem(name: "code_verifier", value: pendingAuthorization?.codeVerifier)
+                URLQueryItem(name: "redirect_uri", value: oauthConfiguration.redirectURL.absoluteString)
             ]
         )
 
@@ -400,16 +536,7 @@ import OSLog
         }
 
         guard 200 ..< 300 ~= httpResponse.statusCode else {
-            let mappedError: AppError
-            switch httpResponse.statusCode {
-            case 401:
-                mappedError = .unauthorized
-            case 403:
-                mappedError = .forbidden
-            default:
-                mappedError = .httpStatus(httpResponse.statusCode)
-            }
-
+            let mappedError = mapStatusCode(httpResponse.statusCode)
             let body = String(data: data, encoding: .utf8) ?? "<non-UTF8 body>"
             AppLogger.authentication.error(
                 "OAuth token request failed: \(mappedError.developerDescription). Response body: \(body, privacy: .public)"
@@ -418,7 +545,6 @@ import OSLog
         }
 
         let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(TokenResponse.self, from: data)
     }
 
@@ -440,6 +566,7 @@ import OSLog
         try keychainStore.save(data)
         persistedCredentials = storedCredentials
         currentUserID = storedCredentials.userID
+        sessionValidation = .idle
         let scopeDescription = storedCredentials.scope ?? "<none>"
         let userDescription = storedCredentials.userID.map(String.init) ?? "<unknown>"
         AppLogger.authentication.info(
@@ -447,63 +574,79 @@ import OSLog
         )
     }
 
-    /// Parses the code from either a callback URL or a raw pasted authorization code.
-    /// - Parameter input: Full callback URL or code string.
+    /// Parses the authorization callback URL and validates that it matches the current pending authorization.
+    /// - Parameter input: Full callback URL returned by the registered Mercado Libre redirect.
     /// - Returns: A normalized authorization code wrapper.
     private func parseAuthorizationCode(from input: String) throws -> AuthorizationCode {
+        guard let oauthConfiguration else {
+            throw AppError.missingOAuthConfiguration
+        }
+
+        guard let pendingAuthorization else {
+            throw AppError.invalidAuthorizationCallback
+        }
+
         let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedInput.isEmpty else {
             throw AppError.invalidAuthorizationCallback
         }
 
-        if let components = URLComponents(string: trimmedInput),
-           let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
-            let returnedState = components.queryItems?.first(where: { $0.name == "state" })?.value
-
-            if let pendingState = pendingAuthorization?.state,
-               let returnedState,
-               returnedState != pendingState {
-                throw AppError.invalidAuthorizationCallback
-            }
-
-            return AuthorizationCode(code: code)
+        guard
+            let callbackURL = URL(string: trimmedInput),
+            let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
+        else {
+            throw AppError.invalidAuthorizationCallback
         }
 
-        AppLogger.authentication.info("Proceeding with a raw authorization code pasted manually. State validation was skipped.")
-        return AuthorizationCode(code: trimmedInput)
+        guard callbackMatchesRegisteredRedirect(callbackURL, expected: oauthConfiguration.redirectURL) else {
+            throw AppError.invalidAuthorizationCallback
+        }
+
+        guard
+            let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
+            !code.isEmpty,
+            let returnedState = components.queryItems?.first(where: { $0.name == "state" })?.value,
+            returnedState == pendingAuthorization.state
+        else {
+            throw AppError.invalidAuthorizationCallback
+        }
+
+        return AuthorizationCode(code: code)
+    }
+
+    /// Ensures the callback URL belongs to the registered redirect endpoint before reading the code or state.
+    private func callbackMatchesRegisteredRedirect(_ callbackURL: URL, expected redirectURL: URL) -> Bool {
+        guard
+            let callbackComponents = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
+            let redirectComponents = URLComponents(url: redirectURL, resolvingAgainstBaseURL: false)
+        else {
+            return false
+        }
+
+        return callbackComponents.scheme?.lowercased() == redirectComponents.scheme?.lowercased()
+            && callbackComponents.host?.lowercased() == redirectComponents.host?.lowercased()
+            && callbackComponents.port == redirectComponents.port
+            && callbackComponents.path == redirectComponents.path
     }
 }
 
-private extension MercadoLibreAuthenticationSession {
+private extension MELIAuthenticationSession {
     /// Wrapper used to make it explicit when the app already normalized the pasted code value.
     struct AuthorizationCode {
         let code: String
     }
 
-    /// PKCE material that stays in memory only for the current authorization attempt.
+    /// State material that stays in memory only for the current authorization attempt.
     struct PendingAuthorization {
         let state: String
-        let codeVerifier: String
-        let codeChallenge: String
 
         init() {
             state = Self.randomURLSafeString(byteCount: 24)
-            codeVerifier = Self.randomURLSafeString(byteCount: 48)
-            codeChallenge = Self.codeChallenge(for: codeVerifier)
         }
 
         private static func randomURLSafeString(byteCount: Int) -> String {
             let bytes = (0 ..< byteCount).map { _ in UInt8.random(in: .min ... .max) }
             return Data(bytes)
-                .base64EncodedString()
-                .replacingOccurrences(of: "+", with: "-")
-                .replacingOccurrences(of: "/", with: "_")
-                .replacingOccurrences(of: "=", with: "")
-        }
-
-        private static func codeChallenge(for verifier: String) -> String {
-            let digest = SHA256.hash(data: Data(verifier.utf8))
-            return Data(digest)
                 .base64EncodedString()
                 .replacingOccurrences(of: "+", with: "-")
                 .replacingOccurrences(of: "/", with: "_")
@@ -544,6 +687,14 @@ private extension MercadoLibreAuthenticationSession {
         let expiresIn: Int
         let scope: String?
         let userID: Int?
+
+        private enum CodingKeys: String, CodingKey {
+            case accessToken = "access_token"
+            case refreshToken = "refresh_token"
+            case expiresIn = "expires_in"
+            case scope
+            case userID = "user_id"
+        }
     }
 }
 
@@ -553,4 +704,18 @@ private extension CharacterSet {
         characterSet.remove(charactersIn: "&+=?")
         return characterSet
     }()
+}
+
+private extension MELIAuthenticationSession {
+    /// Converts HTTP status codes into domain-specific errors for the auth and validation flows.
+    func mapStatusCode(_ statusCode: Int) -> AppError {
+        switch statusCode {
+        case 401:
+            return .unauthorized
+        case 403:
+            return .forbidden
+        default:
+            return .httpStatus(statusCode)
+        }
+    }
 }
