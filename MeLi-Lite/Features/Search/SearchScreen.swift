@@ -408,9 +408,13 @@ private extension SearchScreen {
 
     var backgroundGradient: some View {
         LinearGradient(
-            colors: [
-                Color(red: 0.98, green: 0.97, blue: 0.94),
-                Color(red: 0.92, green: 0.96, blue: 1.00)
+            stops: [
+                .init(color: Color(red: 0.92, green: 0.96, blue: 1.00), location: 0.00),
+                .init(color: Color(red: 0.88, green: 0.93, blue: 0.99), location: 0.22),
+                .init(color: Color(red: 0.84, green: 0.90, blue: 0.98), location: 0.45),
+                .init(color: Color(red: 0.78, green: 0.86, blue: 0.97), location: 0.68),
+                .init(color: Color(red: 0.70, green: 0.81, blue: 0.95), location: 0.85),
+                .init(color: Color(red: 0.62, green: 0.76, blue: 0.94), location: 1.00)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing

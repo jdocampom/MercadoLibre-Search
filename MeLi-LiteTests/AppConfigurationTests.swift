@@ -78,6 +78,76 @@ struct AppConfigurationTests {
         #expect(overriddenConfiguration.oauthRedirectURL?.absoluteString == "https://example.com/callback")
         #expect(overriddenConfiguration.oauthAuthorizationHost == "auth.mercadolibre.com.co")
     }
+
+    @Test
+    func explicitAuthorizationHostOverridesDefaultHost() {
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_SITE_ID": "MCO",
+            "MELI_APP_ID": "123456",
+            "MELI_CLIENT_SECRET": "secret",
+            "MELI_REDIRECT_URL": "https://example.com/callback",
+            "MELI_AUTH_HOST": "auth.custom.example"
+        ])
+
+        #expect(configuration.oauthConfiguration?.authorizationHost == "auth.custom.example")
+    }
+
+    @Test
+    func environmentBadgeReflectsSelectedDataSource() {
+        let demoConfiguration = AppConfiguration.resolve(environment: [:])
+        let liveConfiguration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_ACCESS_TOKEN": "token"
+        ])
+
+        #expect(demoConfiguration.environmentBadge == "Demo Catalog")
+        #expect(liveConfiguration.environmentBadge == "Live API")
+    }
+
+    @Test
+    func assistantNoteExplainsDemoMode() {
+        let configuration = AppConfiguration.resolve(environment: [:])
+
+        #expect(configuration.assistantNote.contains("Demo data is enabled by default"))
+        #expect(configuration.assistantNote.contains("MELI_DATA_SOURCE=live"))
+    }
+
+    @Test
+    func assistantNoteExplainsEnvironmentTokenMode() {
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_ACCESS_TOKEN": "token",
+            "MELI_SITE_ID": "MLA"
+        ])
+
+        #expect(configuration.assistantNote.contains("using MELI_ACCESS_TOKEN"))
+        #expect(configuration.assistantNote.contains("MLA"))
+    }
+
+    @Test
+    func assistantNoteExplainsInteractiveOAuthMode() {
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_SITE_ID": "MCO",
+            "MELI_APP_ID": "123456",
+            "MELI_CLIENT_SECRET": "secret",
+            "MELI_REDIRECT_URL": "https://example.com/callback"
+        ])
+
+        #expect(configuration.assistantNote.contains("authorize interactively"))
+        #expect(configuration.assistantNote.contains("MCO"))
+    }
+
+    @Test
+    func assistantNoteExplainsIncompleteLiveOAuthConfiguration() {
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_SITE_ID": "MCO"
+        ])
+
+        #expect(configuration.assistantNote.contains("OAuth is not fully configured yet"))
+        #expect(configuration.assistantNote.contains("MCO"))
+    }
 }
 
 @Suite("MELI OAuth")
@@ -96,6 +166,34 @@ struct MELIOAuthConfigurationTests {
 @MainActor
 @Suite("MELI Authentication Session")
 struct MELIAuthenticationSessionTests {
+    @Test
+    func environmentTokenStartsInAuthenticatedEnvironmentState() {
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_ACCESS_TOKEN": "env-token"
+        ])
+        let session = MELIAuthenticationSession(configuration: configuration)
+
+        #expect(session.status == .usingEnvironmentAccessToken)
+        #expect(session.isAuthenticated)
+        #expect(session.canValidateCurrentSession)
+        #expect(session.statusMessage.contains("MELI_ACCESS_TOKEN"))
+    }
+
+    @Test
+    func liveWithoutOAuthConfigurationStartsMissingConfiguration() {
+        let session = MELIAuthenticationSession(
+            configuration: AppConfiguration.resolve(environment: [
+                "MELI_DATA_SOURCE": "live",
+                "MELI_SITE_ID": "MCO"
+            ])
+        )
+
+        #expect(session.status == .missingConfiguration)
+        #expect(session.isAuthenticated == false)
+        #expect(session.canAuthorizeInteractively == false)
+    }
+
     @Test
     func rejectsRawAuthorizationCodeWithoutFullCallbackURL() async throws {
         let session = MELIAuthenticationSession(configuration: liveOAuthConfiguration())
@@ -120,6 +218,21 @@ struct MELIAuthenticationSessionTests {
         #expect(queryItemNames.contains("state"))
         #expect(!queryItemNames.contains("code_challenge"))
         #expect(!queryItemNames.contains("code_challenge_method"))
+    }
+
+    @Test
+    func authorizationURLIncludesConfiguredRedirectAndGeneratedState() throws {
+        let configuration = liveOAuthConfiguration()
+        let session = MELIAuthenticationSession(configuration: configuration)
+        let authorizationURL = try session.authorizationURL()
+        let components = try #require(URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false))
+
+        #expect(components.host == "auth.mercadolibre.com.co")
+        #expect(components.path == "/authorization")
+        #expect(components.queryItems?.first(where: { $0.name == "redirect_uri" })?.value == "https://jdocampom.com/meli/callback")
+
+        let returnedState = components.queryItems?.first(where: { $0.name == "state" })?.value
+        #expect(returnedState?.isEmpty == false)
     }
 
     @Test
@@ -179,7 +292,58 @@ struct MELIAuthenticationSessionTests {
         #expect(session.sessionValidationMessage.contains("24680"))
     }
 
-    private func liveOAuthConfiguration(clientID: String = "123456") -> AppConfiguration {
+    @Test
+    func validateCurrentSessionReturnsFalseInDemoMode() async {
+        let session = MELIAuthenticationSession(configuration: .preview)
+
+        let didValidate = await session.validateCurrentSession()
+
+        #expect(didValidate == false)
+        #expect(session.sessionValidation == .idle)
+        #expect(session.canValidateCurrentSession == false)
+    }
+
+    @Test
+    func validateCurrentSessionForbiddenSurfacesFailureState() async {
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_SITE_ID": "MCO",
+            "MELI_ACCESS_TOKEN": "forbidden-token"
+        ])
+        let session = MELIAuthenticationSession(
+            configuration: configuration,
+            urlSession: makeStubURLSession()
+        )
+
+        let didValidate = await session.validateCurrentSession()
+
+        #expect(didValidate == false)
+        #expect(session.latestError == .forbidden)
+        #expect(session.sessionValidationTitle == "Session Validation Failed")
+        #expect(session.sessionValidationMessage == AppError.forbidden.localizedDescription)
+    }
+
+    @Test
+    func signOutResetsValidatedStateWhileKeepingEnvironmentMode() async {
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_SITE_ID": "MCO",
+            "MELI_ACCESS_TOKEN": "env-token"
+        ])
+        let session = MELIAuthenticationSession(
+            configuration: configuration,
+            urlSession: makeStubURLSession()
+        )
+
+        _ = await session.validateCurrentSession()
+        session.signOut()
+
+        #expect(session.currentUserID == nil)
+        #expect(session.sessionValidation == .idle)
+        #expect(session.status == .usingEnvironmentAccessToken)
+    }
+
+    private func liveOAuthConfiguration(clientID: String = "test-client-\(UUID().uuidString)") -> AppConfiguration {
         AppConfiguration.resolve(environment: [
             "MELI_DATA_SOURCE": "live",
             "MELI_SITE_ID": "MCO",
@@ -246,14 +410,29 @@ private final class StubMercadoLibreURLProtocol: URLProtocol {
             client?.urlProtocol(self, didLoad: data)
             client?.urlProtocolDidFinishLoading(self)
         case "/users/me":
-            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let data = Data("""
-            {
-              "id": 24680,
-              "nickname": "john-doe",
-              "site_id": "MCO"
+            let authorizationValue = request.value(forHTTPHeaderField: "Authorization")
+            let statusCode: Int
+            let data: Data
+
+            switch authorizationValue {
+            case "Bearer forbidden-token":
+                statusCode = 403
+                data = Data("{\"message\":\"forbidden\",\"error\":\"forbidden\",\"status\":403,\"cause\":[]}".utf8)
+            case nil:
+                statusCode = 401
+                data = Data("{\"message\":\"unauthorized\",\"error\":\"unauthorized\",\"status\":401,\"cause\":[]}".utf8)
+            default:
+                statusCode = 200
+                data = Data("""
+                {
+                  "id": 24680,
+                  "nickname": "john-doe",
+                  "site_id": "MCO"
+                }
+                """.utf8)
             }
-            """.utf8)
+
+            let response = HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: data)
             client?.urlProtocolDidFinishLoading(self)

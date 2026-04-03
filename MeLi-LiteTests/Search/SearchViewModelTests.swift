@@ -37,6 +37,44 @@ struct SearchViewModelTests {
     }
 
     @Test
+    func trimsWhitespaceBeforeExecutingSearch() async {
+        let recorder = SearchQueryRecorder()
+        let expectedProduct = TestFixtures.summary
+        let viewModel = SearchViewModel(
+            repository: .mock(search: { query in
+                await recorder.append(query)
+                return [expectedProduct]
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "   iPhone   "
+        await viewModel.search()
+
+        #expect(viewModel.query == "iPhone")
+        #expect(viewModel.lastSubmittedQuery == "iPhone")
+        #expect(await recorder.values == ["iPhone"])
+    }
+
+    @Test
+    func emptySearchResultsUseEmptyState() async {
+        let viewModel = SearchViewModel(
+            repository: .mock(search: { query in
+                #expect(query == "Garmin")
+                return []
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "Garmin"
+        await viewModel.search()
+
+        #expect(viewModel.state == .empty)
+        #expect(viewModel.results.isEmpty)
+        #expect(viewModel.lastSubmittedQuery == "Garmin")
+    }
+
+    @Test
     func clearingQueryRestoresIdleState() async {
         let expectedProduct = TestFixtures.summary
         let viewModel = SearchViewModel(
@@ -51,6 +89,62 @@ struct SearchViewModelTests {
         #expect(viewModel.state == .idle)
         #expect(viewModel.results.isEmpty)
         #expect(viewModel.lastSubmittedQuery.isEmpty)
+    }
+
+    @Test
+    func repeatLastSearchDoesNothingWithoutPreviousQuery() async {
+        let recorder = SearchQueryRecorder()
+        let viewModel = SearchViewModel(
+            repository: .mock(search: { query in
+                await recorder.append(query)
+                return [TestFixtures.summary]
+            }),
+            configuration: .preview
+        )
+
+        await viewModel.repeatLastSearch()
+
+        #expect(viewModel.state == .idle)
+        #expect(await recorder.values.isEmpty)
+    }
+
+    @Test
+    func repeatLastSearchReplaysLastSubmittedQuery() async {
+        let recorder = SearchQueryRecorder()
+        let viewModel = SearchViewModel(
+            repository: .mock(search: { query in
+                await recorder.append(query)
+                return [TestFixtures.summary]
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "iPhone"
+        await viewModel.search()
+        viewModel.query = "Sony"
+        await viewModel.repeatLastSearch()
+
+        #expect(viewModel.query == "iPhone")
+        #expect(await recorder.values == ["iPhone", "iPhone"])
+    }
+
+    @Test
+    func applySuggestionUpdatesQueryAndTriggersSearch() async {
+        let recorder = SearchQueryRecorder()
+        let viewModel = SearchViewModel(
+            repository: .mock(search: { query in
+                await recorder.append(query)
+                return [TestFixtures.summary]
+            }),
+            configuration: .preview
+        )
+
+        await viewModel.applySuggestion("Kindle")
+
+        #expect(viewModel.query == "Kindle")
+        #expect(viewModel.lastSubmittedQuery == "Kindle")
+        #expect(viewModel.state == .loaded)
+        #expect(await recorder.values == ["Kindle"])
     }
 
     @Test
@@ -79,6 +173,31 @@ struct SearchViewModelTests {
     }
 
     @Test
+    func isLoadingReflectsInFlightLifecycle() async throws {
+        let viewModel = SearchViewModel(
+            repository: .mock(search: { _ in
+                try await Task.sleep(for: .milliseconds(100))
+                return [TestFixtures.summary]
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "Speaker"
+        let searchTask = Task {
+            await viewModel.search()
+        }
+
+        await Task.yield()
+
+        #expect(viewModel.isLoading)
+
+        await searchTask.value
+
+        #expect(viewModel.isLoading == false)
+        #expect(viewModel.state == .loaded)
+    }
+
+    @Test
     func failedSearchSurfacesMappedError() async {
         let viewModel = SearchViewModel(
             repository: .mock(search: { _ in
@@ -92,6 +211,14 @@ struct SearchViewModelTests {
 
         #expect(viewModel.state == .failed(.forbidden))
         #expect(viewModel.results.isEmpty)
+    }
+}
+
+private actor SearchQueryRecorder {
+    private(set) var values: [String] = []
+
+    func append(_ value: String) {
+        values.append(value)
     }
 }
 
