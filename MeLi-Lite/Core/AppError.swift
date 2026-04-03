@@ -59,6 +59,10 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
             switch code {
             case .notConnectedToInternet:
                 return "You're offline right now."
+            case .cannotFindHost, .dnsLookupFailed:
+                return "The Mercado Libre server name could not be resolved."
+            case .cannotConnectToHost:
+                return "The Mercado Libre server could not be reached."
             case .timedOut:
                 return "The request took too long to finish."
             default:
@@ -78,6 +82,10 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
             return "Refresh your credentials or switch the app back to demo mode."
         case .transport(.notConnectedToInternet):
             return "Check your network connection and try again."
+        case .transport(.cannotFindHost), .transport(.dnsLookupFailed):
+            return "If you're online, DNS resolution may be failing on the device or simulator. Retry, switch networks, or use demo mode."
+        case .transport(.cannotConnectToHost):
+            return "Retry the request, then check firewall, VPN, or proxy settings if the problem continues."
         default:
             return "Try the request again in a moment."
         }
@@ -101,7 +109,16 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         case let .decoding(message):
             return "Failed to decode Mercado Libre payload: \(message)"
         case let .transport(code):
-            return "URLSession transport error: \(code.rawValue)"
+            switch code {
+            case .cannotFindHost:
+                return "URLSession transport error: \(code.rawValue) (cannot find host)"
+            case .dnsLookupFailed:
+                return "URLSession transport error: \(code.rawValue) (DNS lookup failed)"
+            case .cannotConnectToHost:
+                return "URLSession transport error: \(code.rawValue) (cannot connect to host)"
+            default:
+                return "URLSession transport error: \(code.rawValue)"
+            }
         case let .unknown(message):
             return "Unexpected error: \(message)"
         }

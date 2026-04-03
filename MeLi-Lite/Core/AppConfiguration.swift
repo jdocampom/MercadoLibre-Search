@@ -16,16 +16,23 @@ struct AppConfiguration: Equatable, Sendable {
     let accessToken: String?
 
     /// Default configuration loaded from scheme or process environment variables.
-    static let current: AppConfiguration = {
-        let environment = ProcessInfo.processInfo.environment
+    static let current = resolve(environment: ProcessInfo.processInfo.environment)
+
+    /// Resolves the active configuration from a raw environment dictionary.
+    static func resolve(environment: [String: String]) -> AppConfiguration {
         let accessToken = environment["MELI_ACCESS_TOKEN"]?.trimmedNonEmptyValue
-        let requestedSource = environment["MELI_DATA_SOURCE"]?.lowercased()
+        let requestedSource = environment["MELI_DATA_SOURCE"]
+            .map { $0.lowercased() }
+            .flatMap(DataSource.init(rawValue:))
         let dataSource: DataSource
 
-        if requestedSource == DataSource.live.rawValue || accessToken != nil {
-            dataSource = .live
-        } else {
+        switch requestedSource {
+        case .demo?:
             dataSource = .demo
+        case .live?:
+            dataSource = .live
+        case nil:
+            dataSource = accessToken == nil ? .demo : .live
         }
 
         return AppConfiguration(
@@ -33,7 +40,7 @@ struct AppConfiguration: Equatable, Sendable {
             siteID: environment["MELI_SITE_ID"]?.trimmedNonEmptyValue ?? "MCO",
             accessToken: accessToken
         )
-    }()
+    }
 
     /// Stable configuration used by previews and local UI rendering.
     static let preview = AppConfiguration(dataSource: .demo, siteID: "MCO", accessToken: nil)

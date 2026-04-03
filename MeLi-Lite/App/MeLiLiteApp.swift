@@ -7,11 +7,11 @@
 
 import SwiftUI
 
-/// Application entry point that builds the dependency container once and injects it into the root UI.
+/// The application entry point that builds the dependency container once and injects it into the root UI.
 @main
 struct MeLiLiteApp: App {
-    /// Shared dependency graph used by the initial scene.
-    private let container = AppContainer.bootstrap()
+    /// The shared dependency graph used by the initial scene.
+    private let container = AppContainer.main()
 
     var body: some Scene {
         WindowGroup {

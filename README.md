@@ -24,13 +24,21 @@ Because of that, the app defaults to demo mode and keeps the live integration be
 
 ## Configuration
 
-Use demo mode with no extra setup, or enable live mode through your scheme environment variables:
+The shared scheme now starts in demo mode and does not ship a token. Use demo mode with no extra setup, or enable live mode through local environment variables in your own scheme:
 
 - `MELI_DATA_SOURCE=live`
 - `MELI_ACCESS_TOKEN=<your token>`
-- `MELI_SITE_ID=MLA`
+- `MELI_SITE_ID=MCO`
 
-If `MELI_ACCESS_TOKEN` is present, the app automatically switches to live mode.
+If `MELI_DATA_SOURCE` is unset, the app still switches to live mode when `MELI_ACCESS_TOKEN` is present. If you want to keep a token locally but force demo, set `MELI_DATA_SOURCE=demo`.
+
+Before running in live mode, you can validate the local configuration with:
+
+```sh
+scripts/check_live_env.sh
+```
+
+The script exits early when demo mode is active and reports a clearer failure when Mercado Libre rejects the token with `401` or `403`.
 
 ## Architecture
 

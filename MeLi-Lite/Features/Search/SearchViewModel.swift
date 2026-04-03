@@ -16,7 +16,15 @@ final class SearchViewModel {
     }
 
     /// Current user-entered query bound to the search field.
-    var query: String
+    var query: String {
+        didSet {
+            guard query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return
+            }
+
+            resetToIdle()
+        }
+    }
     /// Latest product summaries returned by the repository.
     private(set) var results: [ProductSummary]
     /// Current rendering state of the search screen.
@@ -28,6 +36,7 @@ final class SearchViewModel {
     let configuration: AppConfiguration
 
     @ObservationIgnored private let repository: ProductRepository
+    @ObservationIgnored private var searchGeneration = 0
 
     /// Creates the search state holder with an injected repository and initial query.
     /// - Parameters:
@@ -62,19 +71,28 @@ final class SearchViewModel {
         query = normalizedQuery
 
         guard !normalizedQuery.isEmpty else {
-            results = []
-            state = .idle
+            resetToIdle()
             return
         }
 
+        searchGeneration &+= 1
+        let currentSearchGeneration = searchGeneration
         state = .loading
         lastSubmittedQuery = normalizedQuery
 
         do {
             let fetchedProducts = try await repository.searchProducts(matching: normalizedQuery)
+            guard currentSearchGeneration == searchGeneration else {
+                return
+            }
+
             results = fetchedProducts
             state = fetchedProducts.isEmpty ? .empty : .loaded
         } catch {
+            guard currentSearchGeneration == searchGeneration else {
+                return
+            }
+
             let appError = AppError.from(error)
             results = []
             state = .failed(appError)
@@ -97,5 +115,12 @@ final class SearchViewModel {
     func applySuggestion(_ suggestion: String) async {
         query = suggestion
         await search()
+    }
+
+    private func resetToIdle() {
+        searchGeneration &+= 1
+        results = []
+        state = .idle
+        lastSubmittedQuery = ""
     }
 }

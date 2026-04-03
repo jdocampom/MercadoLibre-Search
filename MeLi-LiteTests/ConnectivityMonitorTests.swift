@@ -62,13 +62,13 @@ struct ConnectivityMonitorTests {
         defer { notificationCenter.removeObserver(observer) }
 
         continuation.yield(.connected)
-        await Task.yield()
+        await waitUntilRecordedCount(1, in: recorder)
 
         continuation.yield(.connected)
-        await Task.yield()
+        await waitUntilRecordedCount(1, in: recorder)
 
         continuation.yield(.disconnected)
-        await Task.yield()
+        await waitUntilRecordedCount(2, in: recorder)
 
         let receivedStatuses = await recorder.values
         #expect(receivedStatuses.count == 2)
@@ -96,10 +96,30 @@ struct ConnectivityMonitorTests {
             await Task.yield()
         }
     }
+
+    private func waitUntilRecordedCount(
+        _ expectedCount: Int,
+        in recorder: NotificationRecorder,
+        timeoutNanoseconds: UInt64 = 1_000_000_000
+    ) async {
+        let start = ContinuousClock.now
+
+        while await recorder.count < expectedCount {
+            if ContinuousClock.now - start > .nanoseconds(timeoutNanoseconds) {
+                break
+            }
+
+            await Task.yield()
+        }
+    }
 }
 
 private actor NotificationRecorder {
     private(set) var values: [(previous: String, current: String, isConnected: Bool)] = []
+
+    var count: Int {
+        values.count
+    }
 
     func append(_ value: (previous: String, current: String, isConnected: Bool)) {
         values.append(value)

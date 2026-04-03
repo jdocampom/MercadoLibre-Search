@@ -37,6 +37,48 @@ struct SearchViewModelTests {
     }
 
     @Test
+    func clearingQueryRestoresIdleState() async {
+        let expectedProduct = TestFixtures.summary
+        let viewModel = SearchViewModel(
+            repository: .mock(search: { _ in [expectedProduct] }),
+            configuration: .preview
+        )
+
+        viewModel.query = "iPhone"
+        await viewModel.search()
+        viewModel.query = ""
+
+        #expect(viewModel.state == .idle)
+        #expect(viewModel.results.isEmpty)
+        #expect(viewModel.lastSubmittedQuery.isEmpty)
+    }
+
+    @Test
+    func clearingQueryInvalidatesInFlightSearchResults() async throws {
+        let expectedProduct = TestFixtures.summary
+        let viewModel = SearchViewModel(
+            repository: .mock(search: { _ in
+                try await Task.sleep(for: .milliseconds(100))
+                return [expectedProduct]
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "iPhone"
+        let searchTask = Task {
+            await viewModel.search()
+        }
+
+        try await Task.sleep(for: .milliseconds(20))
+        viewModel.query = ""
+        await searchTask.value
+
+        #expect(viewModel.state == .idle)
+        #expect(viewModel.results.isEmpty)
+        #expect(viewModel.lastSubmittedQuery.isEmpty)
+    }
+
+    @Test
     func failedSearchSurfacesMappedError() async {
         let viewModel = SearchViewModel(
             repository: .mock(search: { _ in

@@ -3,34 +3,33 @@ import Network
 import Observation
 
 extension Notification.Name {
-    /// Posted whenever the connectivity monitor transitions between known states.
+    /// A notification posted whenever the connectivity monitor transitions between known states.
     static let connectivityStatusDidChange = Notification.Name("ConnectivityMonitor.statusDidChange")
 }
 
-/// Simplified connectivity state consumed by the UI and tests.
+/// Defines all possible network connectivity state consumed by the UI and tests.
 enum ConnectivityStatus: String, Equatable, Sendable {
     case unknown
     case connected
     case disconnected
 
-    /// Convenience flag for banner and refresh logic.
     var isConnected: Bool {
         self == .connected
     }
 }
 
-/// Notification payload keys emitted with connectivity status changes.
+/// The notification payload keys emitted with connectivity status changes.
 enum ConnectivityStatusNotificationKey {
     static let previousStatus = "previousStatus"
     static let currentStatus = "currentStatus"
     static let isConnected = "isConnected"
 }
 
-@MainActor
+/// An object that observes system reachability updates and exposes them through
+/// Observation-friendly state.
 @Observable
-/// Observes system reachability updates and exposes them through Observation-friendly state.
-final class ConnectivityMonitor {
-    /// Current connectivity state derived from `NWPathMonitor`.
+@MainActor final class ConnectivityMonitor {
+    /// The current connectivity state derived from `NWPathMonitor`.
     private(set) var status: ConnectivityStatus
 
     @ObservationIgnored private let notificationCenter: NotificationCenter
