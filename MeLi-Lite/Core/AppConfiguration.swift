@@ -14,6 +14,14 @@ struct AppConfiguration: Equatable, Sendable {
     let siteID: String
     /// OAuth token required for authenticated live requests.
     let accessToken: String?
+    /// Mercado Libre OAuth app identifier used for interactive authorization.
+    let oauthClientID: String?
+    /// Mercado Libre OAuth client secret used for token exchange in local development.
+    let oauthClientSecret: String?
+    /// Redirect URL registered for the OAuth app.
+    let oauthRedirectURL: URL?
+    /// Authorization host used to open the Mercado Libre grant page.
+    let oauthAuthorizationHost: String?
 
     /// Default configuration loaded from scheme or process environment variables.
     static let current = resolve(environment: ProcessInfo.processInfo.environment)
@@ -21,9 +29,12 @@ struct AppConfiguration: Equatable, Sendable {
     /// Resolves the active configuration from a raw environment dictionary.
     static func resolve(environment: [String: String]) -> AppConfiguration {
         let accessToken = environment["MELI_ACCESS_TOKEN"]?.trimmedNonEmptyValue
+        let siteID = environment["MELI_SITE_ID"]?.trimmedNonEmptyValue ?? "MCO"
         let requestedSource = environment["MELI_DATA_SOURCE"]
             .map { $0.lowercased() }
             .flatMap(DataSource.init(rawValue:))
+        let oauthAuthorizationHost = environment["MELI_AUTH_HOST"]?.trimmedNonEmptyValue
+            ?? MercadoLibreOAuthConfiguration.defaultAuthorizationHost(forSiteID: siteID)
         let dataSource: DataSource
 
         switch requestedSource {
@@ -37,13 +48,25 @@ struct AppConfiguration: Equatable, Sendable {
 
         return AppConfiguration(
             dataSource: dataSource,
-            siteID: environment["MELI_SITE_ID"]?.trimmedNonEmptyValue ?? "MCO",
-            accessToken: accessToken
+            siteID: siteID,
+            accessToken: accessToken,
+            oauthClientID: environment["MELI_APP_ID"]?.trimmedNonEmptyValue,
+            oauthClientSecret: environment["MELI_CLIENT_SECRET"]?.trimmedNonEmptyValue,
+            oauthRedirectURL: environment["MELI_REDIRECT_URL"]?.trimmedNonEmptyValue.flatMap(URL.init(string:)),
+            oauthAuthorizationHost: oauthAuthorizationHost
         )
     }
 
     /// Stable configuration used by previews and local UI rendering.
-    static let preview = AppConfiguration(dataSource: .demo, siteID: "MCO", accessToken: nil)
+    static let preview = AppConfiguration(
+        dataSource: .demo,
+        siteID: "MCO",
+        accessToken: nil,
+        oauthClientID: nil,
+        oauthClientSecret: nil,
+        oauthRedirectURL: nil,
+        oauthAuthorizationHost: MercadoLibreOAuthConfiguration.defaultAuthorizationHost(forSiteID: "MCO")
+    )
 
     /// Indicates whether the app should avoid live network calls.
     var isUsingDemoData: Bool {
@@ -55,13 +78,40 @@ struct AppConfiguration: Equatable, Sendable {
         isUsingDemoData ? "Demo Catalog" : "Live API"
     }
 
+    /// Fully resolved OAuth settings when the required variables are available.
+    var oauthConfiguration: MercadoLibreOAuthConfiguration? {
+        guard
+            let oauthClientID,
+            let oauthClientSecret,
+            let oauthRedirectURL,
+            let oauthAuthorizationHost
+        else {
+            return nil
+        }
+
+        return MercadoLibreOAuthConfiguration(
+            clientID: oauthClientID,
+            clientSecret: oauthClientSecret,
+            redirectURL: oauthRedirectURL,
+            authorizationHost: oauthAuthorizationHost
+        )
+    }
+
     /// Developer-facing explanation of how the current environment was resolved.
     var assistantNote: String {
         if isUsingDemoData {
-            return "Demo data is enabled by default because Mercado Libre product search currently requires authorization. Configure MELI_DATA_SOURCE=live and MELI_ACCESS_TOKEN to use live requests."
+            return "Demo data is enabled by default because Mercado Libre product search currently requires authorization. Configure MELI_DATA_SOURCE=live plus either MELI_ACCESS_TOKEN or the OAuth variables to use live requests."
         }
 
-        return "Live Mercado Libre requests are enabled for site \(siteID)."
+        if accessToken != nil {
+            return "Live Mercado Libre requests are enabled for site \(siteID) using MELI_ACCESS_TOKEN from the environment."
+        }
+
+        if oauthConfiguration != nil {
+            return "Live Mercado Libre requests are enabled for site \(siteID) and can authorize interactively with Mercado Libre OAuth."
+        }
+
+        return "Live Mercado Libre requests are enabled for site \(siteID), but OAuth is not fully configured yet."
     }
 }
 

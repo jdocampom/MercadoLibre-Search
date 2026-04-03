@@ -5,23 +5,29 @@ import OSLog
 final class MercadoLibreAPIClient {
     /// Runtime configuration used to resolve credentials and site scope.
     private let configuration: AppConfiguration
+    /// Async provider that resolves a valid bearer token before each live request.
+    private let accessTokenProvider: @MainActor () async throws -> String
     /// In-memory cache that avoids refetching detail screens during the same session.
     private var detailCache: [String: ProductDetail] = [:]
 
     /// Creates a client bound to a specific runtime configuration.
-    /// - Parameter configuration: Runtime settings that provide site scope and credentials.
-    init(configuration: AppConfiguration) {
+    /// - Parameters:
+    ///   - configuration: Runtime settings that provide site scope and credentials.
+    ///   - accessTokenProvider: Async provider that returns a valid bearer token.
+    init(
+        configuration: AppConfiguration,
+        accessTokenProvider: @escaping @MainActor () async throws -> String
+    ) {
         self.configuration = configuration
+        self.accessTokenProvider = accessTokenProvider
     }
 
     /// Executes a search request and maps the response into summary models.
     /// - Parameter query: Search text to forward to Mercado Libre.
     /// - Returns: Product summaries returned by the search endpoint.
     func searchProducts(matching query: String) async throws -> [ProductSummary] {
-        let accessToken = try validatedAccessToken()
         let payload: MercadoSearchResponseDTO = try await request(
-            endpoint: .search(query: query, siteID: configuration.siteID),
-            accessToken: accessToken
+            endpoint: .search(query: query, siteID: configuration.siteID)
         )
 
         return payload.results.map(\.summary)
@@ -35,36 +41,18 @@ final class MercadoLibreAPIClient {
             return cachedDetail
         }
 
-        let accessToken = try validatedAccessToken()
-        let payload: MercadoItemDTO = try await request(
-            endpoint: .itemDetail(id: id),
-            accessToken: accessToken
-        )
+        let payload: MercadoItemDTO = try await request(endpoint: .itemDetail(id: id))
 
         let detail = payload.detail
         detailCache[id] = detail
         return detail
     }
 
-    /// Ensures live requests always have a non-empty access token available.
-    /// - Returns: The configured Mercado Libre access token.
-    private func validatedAccessToken() throws -> String {
-        guard let accessToken = configuration.accessToken else {
-            throw AppError.missingAccessToken
-        }
-
-        return accessToken
-    }
-
     /// Sends an authorized request and translates transport or decoding failures into `AppError`.
-    /// - Parameters:
-    ///   - endpoint: API endpoint to request.
-    ///   - accessToken: Bearer token used to authorize the request.
+    /// - Parameter endpoint: API endpoint to request.
     /// - Returns: A decoded payload of the expected type.
-    private func request<T: Decodable>(
-        endpoint: MercadoLibreEndpoint,
-        accessToken: String
-    ) async throws -> T {
+    private func request<T: Decodable>(endpoint: MercadoLibreEndpoint) async throws -> T {
+        let accessToken = try await accessTokenProvider()
         let request = try endpoint.makeRequest(accessToken: accessToken)
         AppLogger.networking.debug("Requesting \(request.url?.absoluteString ?? "unknown")")
 

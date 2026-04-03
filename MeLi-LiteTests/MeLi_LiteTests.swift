@@ -5,6 +5,7 @@
 //  Created by Juan Diego Ocampo on 4/2/26.
 //
 
+import Foundation
 import Testing
 @testable import MeLi_Lite
 
@@ -43,5 +44,33 @@ struct AppConfigurationTests {
 
         #expect(configuration.dataSource == .live)
         #expect(configuration.siteID == "MCO")
+    }
+
+    @Test
+    func resolvesOAuthConfigurationFromEnvironment() {
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_APP_ID": "123456",
+            "MELI_CLIENT_SECRET": "secret",
+            "MELI_REDIRECT_URL": "https://example.com/callback",
+            "MELI_SITE_ID": "MCO"
+        ])
+
+        #expect(configuration.oauthConfiguration?.clientID == "123456")
+        #expect(configuration.oauthConfiguration?.clientSecret == "secret")
+        #expect(configuration.oauthConfiguration?.redirectURL.absoluteString == "https://example.com/callback")
+        #expect(configuration.oauthConfiguration?.authorizationHost == "auth.mercadolibre.com.co")
+    }
+}
+
+@Suite("Mercado Libre OAuth")
+struct MercadoLibreOAuthConfigurationTests {
+    @Test
+    func resolvesKnownAuthorizationHostForMCO() {
+        #expect(MercadoLibreOAuthConfiguration.defaultAuthorizationHost(forSiteID: "MCO") == "auth.mercadolibre.com.co")
+    }
+
+    @Test
+    func leavesUnknownSitesWithoutDefaultAuthorizationHost() {
+        #expect(MercadoLibreOAuthConfiguration.defaultAuthorizationHost(forSiteID: "UNKNOWN") == nil)
     }
 }

@@ -5,6 +5,8 @@ struct ContentView: View {
     /// The shared container passed down from the app entry point.
     private let container: AppContainer
 
+    /// The shared OAuth session that manages live Mercado Libre authorization.
+    @State private var authenticationSession: MercadoLibreAuthenticationSession
     /// The search view model so it survives SwiftUI view refreshes.
     @State private var viewModel: SearchViewModel
     
@@ -18,6 +20,7 @@ struct ContentView: View {
     ///   
     init(container: AppContainer) {
         self.container = container
+        _authenticationSession = State(initialValue: container.authenticationSession)
         _viewModel = State(
             initialValue: SearchViewModel(
                 repository: container.productRepository,
@@ -31,7 +34,8 @@ struct ContentView: View {
         NavigationStack {
             SearchScreen(
                 viewModel: viewModel,
-                connectivityMonitor: connectivityMonitor
+                connectivityMonitor: connectivityMonitor,
+                authenticationSession: authenticationSession
             )
             .navigationDestination(for: ProductSummary.self) { product in
                 ProductDetailScreen(
@@ -41,9 +45,17 @@ struct ContentView: View {
                 )
             }
         }
+        .task {
+            await authenticationSession.prepareIfNeeded()
+        }
+        .onOpenURL { url in
+            Task {
+                _ = await authenticationSession.completeAuthorization(from: url.absoluteString)
+            }
+        }
     }
 }
 
 #Preview {
-    ContentView(container: .bootstrap(configuration: .preview))
+    ContentView(container: .main(configuration: .preview))
 }

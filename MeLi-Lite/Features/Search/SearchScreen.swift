@@ -5,7 +5,9 @@ import SwiftUI
 struct SearchScreen: View {
     @Bindable var viewModel: SearchViewModel
     @Bindable var connectivityMonitor: ConnectivityMonitor
+    @Bindable var authenticationSession: MercadoLibreAuthenticationSession
     @FocusState private var isSearchFieldFocused: Bool
+    @State private var isOAuthSheetPresented = false
 
     private let suggestions = ["iPhone", "Sony", "Kindle", "Garmin", "Speaker"]
     private let columns = [GridItem(.adaptive(minimum: 120), spacing: 12)]
@@ -19,6 +21,8 @@ struct SearchScreen: View {
 
                 if viewModel.configuration.isUsingDemoData {
                     environmentBanner
+                } else if authenticationSession.shouldShowAuthorizationBanner {
+                    liveAuthorizationBanner
                 }
 
                 content
@@ -34,8 +38,17 @@ struct SearchScreen: View {
         .refreshable {
             await viewModel.repeatLastSearch()
         }
+        .sheet(isPresented: $isOAuthSheetPresented) {
+            OAuthSetupSheet(authenticationSession: authenticationSession)
+        }
         .safeAreaInset(edge: searchBarEdge, spacing: 0) {
             searchBarContainer
+        }
+        .task {
+            await authenticationSession.prepareIfNeeded()
+            if authenticationSession.shouldPromptForAuthorization {
+                isOAuthSheetPresented = true
+            }
         }
     }
 }
@@ -166,6 +179,37 @@ private extension SearchScreen {
                     .foregroundStyle(.secondary)
             }
         }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.white.opacity(0.8))
+        )
+    }
+
+    var liveAuthorizationBanner: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(authenticationSession.statusTitle, systemImage: "person.crop.circle.badge.checkmark")
+                .font(.headline)
+
+            Text(authenticationSession.statusMessage)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button(authenticationSession.isAuthenticated ? "Manage OAuth" : "Connect OAuth") {
+                    isOAuthSheetPresented = true
+                }
+                .buttonStyle(.borderedProminent)
+
+                if authenticationSession.isAuthenticated {
+                    Button("Forget Session", role: .destructive) {
+                        authenticationSession.signOut()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
         .padding(18)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)

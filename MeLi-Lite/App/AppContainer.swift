@@ -4,6 +4,9 @@ import Foundation
 struct AppContainer {
     /// The environment-driven runtime settings.
     let configuration: AppConfiguration
+
+    /// The shared OAuth session used by live Mercado Libre flows.
+    let authenticationSession: MercadoLibreAuthenticationSession
     
     /// The product data source resolved from the active configuration.
     let productRepository: ProductRepository
@@ -18,12 +21,17 @@ struct AppContainer {
     /// - Returns: A fully wired dependency container for the app.
     ///
     static func main(configuration: AppConfiguration = .current) -> AppContainer {
+        let authenticationSession = MercadoLibreAuthenticationSession(configuration: configuration)
         let repository = configuration.isUsingDemoData
             ? DemoProductRepository.makeRepository()
-            : LiveProductRepository.makeRepository(configuration: configuration)
+            : LiveProductRepository.makeRepository(
+                configuration: configuration,
+                accessTokenProvider: authenticationSession.validAccessToken
+            )
 
         return AppContainer(
             configuration: configuration,
+            authenticationSession: authenticationSession,
             productRepository: repository,
             connectivityMonitor: ConnectivityMonitor()
         )

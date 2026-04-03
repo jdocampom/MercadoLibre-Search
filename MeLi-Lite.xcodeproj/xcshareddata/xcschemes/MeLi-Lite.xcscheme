@@ -78,12 +78,27 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "MELI_DATA_SOURCE"
-            value = "demo"
+            value = "live"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "MELI_SITE_ID"
             value = "MCO"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "MELI_REDIRECT_URL"
+            value = "https://jdocampom.com/meli/callback"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "MELI_CLIENT_SECRET"
+            value = "rE6dzHY1myeOkLlrxq64UYF1Z2SWZeFd"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "MELI_APP_ID"
+            value = "2659519437949925"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

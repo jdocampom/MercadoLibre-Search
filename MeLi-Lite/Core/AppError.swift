@@ -4,6 +4,10 @@ import Foundation
 enum AppError: Error, LocalizedError, Equatable, Sendable {
     /// Live mode was requested without a configured OAuth token.
     case missingAccessToken
+    /// Live mode is missing the OAuth app id, client secret, or redirect URL.
+    case missingOAuthConfiguration
+    /// The callback URL or authorization code could not be parsed.
+    case invalidAuthorizationCallback
     /// The app could not build a valid Mercado Libre endpoint URL.
     case invalidURL
     /// The server response was not an HTTP payload the app understands.
@@ -44,7 +48,11 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
     var errorDescription: String? {
         switch self {
         case .missingAccessToken:
-            return "Live Mercado Libre requests need an access token."
+            return "Live Mercado Libre requests need a valid access token."
+        case .missingOAuthConfiguration:
+            return "OAuth is not fully configured for live Mercado Libre requests."
+        case .invalidAuthorizationCallback:
+            return "The callback URL or authorization code could not be understood."
         case .invalidURL, .invalidResponse:
             return "The app could not understand the server response."
         case .unauthorized:
@@ -77,7 +85,11 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
     var recoverySuggestion: String? {
         switch self {
         case .missingAccessToken:
-            return "Add MELI_ACCESS_TOKEN to your scheme environment variables or use demo mode."
+            return "Authorize the app with OAuth, provide MELI_ACCESS_TOKEN locally, or switch back to demo mode."
+        case .missingOAuthConfiguration:
+            return "Configure MELI_APP_ID, MELI_CLIENT_SECRET, and MELI_REDIRECT_URL, or switch back to demo mode."
+        case .invalidAuthorizationCallback:
+            return "Paste the full callback URL returned by Mercado Libre, or paste the authorization code only."
         case .unauthorized, .forbidden:
             return "Refresh your credentials or switch the app back to demo mode."
         case .transport(.notConnectedToInternet):
@@ -95,7 +107,11 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
     var developerDescription: String {
         switch self {
         case .missingAccessToken:
-            return "Missing MELI_ACCESS_TOKEN while using the live data source."
+            return "No valid Mercado Libre access token was available for the live data source."
+        case .missingOAuthConfiguration:
+            return "Missing MELI_APP_ID, MELI_CLIENT_SECRET, or MELI_REDIRECT_URL while trying to use OAuth."
+        case .invalidAuthorizationCallback:
+            return "Failed to parse an authorization code from the provided callback input."
         case .invalidURL:
             return "Failed to construct a valid Mercado Libre URL request."
         case .invalidResponse:
