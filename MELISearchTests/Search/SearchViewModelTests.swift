@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import MeLi_Lite
 
@@ -20,19 +21,22 @@ struct SearchViewModelTests {
     @Test
     func successfulSearchStoresResults() async {
         let expectedProduct = TestFixtures.summary
+        let updatedAt = Date(timeIntervalSinceReferenceDate: 123_456)
         let viewModel = SearchViewModel(
             repository: .mock(search: { query in
                 #expect(query == "iPhone")
                 return [expectedProduct]
             }),
-            configuration: .preview
+            configuration: .preview,
+            dateProvider: { updatedAt }
         )
 
         viewModel.query = "iPhone"
         await viewModel.search()
 
-        #expect(viewModel.state == .loaded)
+        #expect(viewModel.state == SearchViewModel.State.loaded)
         #expect(viewModel.lastSubmittedQuery == "iPhone")
+        #expect(viewModel.lastUpdatedAt == updatedAt)
         #expect(viewModel.results == [expectedProduct])
     }
 
@@ -58,20 +62,23 @@ struct SearchViewModelTests {
 
     @Test
     func emptySearchResultsUseEmptyState() async {
+        let updatedAt = Date(timeIntervalSinceReferenceDate: 654_321)
         let viewModel = SearchViewModel(
             repository: .mock(search: { query in
                 #expect(query == "Garmin")
                 return []
             }),
-            configuration: .preview
+            configuration: .preview,
+            dateProvider: { updatedAt }
         )
 
         viewModel.query = "Garmin"
         await viewModel.search()
 
-        #expect(viewModel.state == .empty)
+        #expect(viewModel.state == SearchViewModel.State.empty)
         #expect(viewModel.results.isEmpty)
         #expect(viewModel.lastSubmittedQuery == "Garmin")
+        #expect(viewModel.lastUpdatedAt == updatedAt)
     }
 
     @Test
@@ -89,6 +96,7 @@ struct SearchViewModelTests {
         #expect(viewModel.state == .idle)
         #expect(viewModel.results.isEmpty)
         #expect(viewModel.lastSubmittedQuery.isEmpty)
+        #expect(viewModel.lastUpdatedAt == nil)
     }
 
     @Test
@@ -111,12 +119,19 @@ struct SearchViewModelTests {
     @Test
     func repeatLastSearchReplaysLastSubmittedQuery() async {
         let recorder = SearchQueryRecorder()
+        let dateProvider = TestDateProvider(
+            values: [
+                Date(timeIntervalSinceReferenceDate: 1_000),
+                Date(timeIntervalSinceReferenceDate: 2_000)
+            ]
+        )
         let viewModel = SearchViewModel(
             repository: .mock(search: { query in
                 await recorder.append(query)
                 return [TestFixtures.summary]
             }),
-            configuration: .preview
+            configuration: .preview,
+            dateProvider: dateProvider.next
         )
 
         viewModel.query = "iPhone"
@@ -125,6 +140,7 @@ struct SearchViewModelTests {
         await viewModel.repeatLastSearch()
 
         #expect(viewModel.query == "iPhone")
+        #expect(viewModel.lastUpdatedAt == Date(timeIntervalSinceReferenceDate: 2_000))
         #expect(await recorder.values == ["iPhone", "iPhone"])
     }
 
@@ -199,18 +215,21 @@ struct SearchViewModelTests {
 
     @Test
     func failedSearchSurfacesMappedError() async {
+        let updatedAt = Date(timeIntervalSinceReferenceDate: 999_999)
         let viewModel = SearchViewModel(
             repository: .mock(search: { _ in
                 throw AppError.forbidden
             }),
-            configuration: .preview
+            configuration: .preview,
+            dateProvider: { updatedAt }
         )
 
         viewModel.query = "iPhone"
         await viewModel.search()
 
-        #expect(viewModel.state == .failed(.forbidden))
+        #expect(viewModel.state == SearchViewModel.State.failed(AppError.forbidden))
         #expect(viewModel.results.isEmpty)
+        #expect(viewModel.lastUpdatedAt == nil)
     }
 }
 
@@ -219,6 +238,19 @@ private actor SearchQueryRecorder {
 
     func append(_ value: String) {
         values.append(value)
+    }
+}
+
+@MainActor
+private final class TestDateProvider {
+    private var values: [Date]
+
+    init(values: [Date]) {
+        self.values = values
+    }
+
+    func next() -> Date {
+        values.removeFirst()
     }
 }
 

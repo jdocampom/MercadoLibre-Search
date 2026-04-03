@@ -31,11 +31,14 @@ final class SearchViewModel {
     private(set) var state: State
     /// Last non-empty query submitted to the repository.
     private(set) var lastSubmittedQuery: String
+    /// Timestamp of the most recent successful search response shown by the UI.
+    private(set) var lastUpdatedAt: Date?
 
     /// Runtime configuration exposed to the UI for environment messaging.
     let configuration: AppConfiguration
 
     @ObservationIgnored private let repository: ProductRepository
+    @ObservationIgnored private let dateProvider: () -> Date
     @ObservationIgnored private var searchGeneration = 0
 
     /// Creates the search state holder with an injected repository and initial query.
@@ -46,14 +49,17 @@ final class SearchViewModel {
     init(
         repository: ProductRepository,
         configuration: AppConfiguration,
-        initialQuery: String = ""
+        initialQuery: String = "",
+        dateProvider: @escaping () -> Date = Date.init
     ) {
         self.repository = repository
+        self.dateProvider = dateProvider
         self.configuration = configuration
         query = initialQuery
         results = []
         state = .idle
         lastSubmittedQuery = ""
+        lastUpdatedAt = nil
     }
 
     var isLoading: Bool {
@@ -87,6 +93,7 @@ final class SearchViewModel {
             }
 
             results = fetchedProducts
+            lastUpdatedAt = dateProvider()
             state = fetchedProducts.isEmpty ? .empty : .loaded
         } catch {
             guard currentSearchGeneration == searchGeneration else {
@@ -122,5 +129,6 @@ final class SearchViewModel {
         results = []
         state = .idle
         lastSubmittedQuery = ""
+        lastUpdatedAt = nil
     }
 }

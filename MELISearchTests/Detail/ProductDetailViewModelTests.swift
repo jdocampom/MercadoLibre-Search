@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import MeLi_Lite
 
+@Suite(.serialized)
 @MainActor
 struct ProductDetailViewModelTests {
     @Test

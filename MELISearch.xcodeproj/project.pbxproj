@@ -24,25 +24,25 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		86A865DD2F7F5B7B00913C9D /* MeLi-Lite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MeLi-Lite.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		86A865EA2F7F5B7D00913C9D /* MeLi-LiteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MeLi-LiteTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		86A865F42F7F5B7D00913C9D /* MeLi-LiteUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MeLi-LiteUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		86A865DD2F7F5B7B00913C9D /* MELISearch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MELISearch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		86A865EA2F7F5B7D00913C9D /* MELISearchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MELISearchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		86A865F42F7F5B7D00913C9D /* MELISearchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MELISearchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		86A865DF2F7F5B7B00913C9D /* MeLi-Lite */ = {
+		86A865DF2F7F5B7B00913C9D /* MELISearch */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "MeLi-Lite";
+			path = MELISearch;
 			sourceTree = "<group>";
 		};
-		86A865ED2F7F5B7D00913C9D /* MeLi-LiteTests */ = {
+		86A865ED2F7F5B7D00913C9D /* MELISearchTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "MeLi-LiteTests";
+			path = MELISearchTests;
 			sourceTree = "<group>";
 		};
-		86A865F72F7F5B7D00913C9D /* MeLi-LiteUITests */ = {
+		86A865F72F7F5B7D00913C9D /* MELISearchUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "MeLi-LiteUITests";
+			path = MELISearchUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,9 +75,9 @@
 		86A865D42F7F5B7B00913C9D = {
 			isa = PBXGroup;
 			children = (
-				86A865DF2F7F5B7B00913C9D /* MeLi-Lite */,
-				86A865ED2F7F5B7D00913C9D /* MeLi-LiteTests */,
-				86A865F72F7F5B7D00913C9D /* MeLi-LiteUITests */,
+				86A865DF2F7F5B7B00913C9D /* MELISearch */,
+				86A865ED2F7F5B7D00913C9D /* MELISearchTests */,
+				86A865F72F7F5B7D00913C9D /* MELISearchUITests */,
 				86A865DE2F7F5B7B00913C9D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -85,9 +85,9 @@
 		86A865DE2F7F5B7B00913C9D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				86A865DD2F7F5B7B00913C9D /* MeLi-Lite.app */,
-				86A865EA2F7F5B7D00913C9D /* MeLi-LiteTests.xctest */,
-				86A865F42F7F5B7D00913C9D /* MeLi-LiteUITests.xctest */,
+				86A865DD2F7F5B7B00913C9D /* MELISearch.app */,
+				86A865EA2F7F5B7D00913C9D /* MELISearchTests.xctest */,
+				86A865F42F7F5B7D00913C9D /* MELISearchUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,9 +95,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		86A865DC2F7F5B7B00913C9D /* MeLi-Lite */ = {
+		86A865DC2F7F5B7B00913C9D /* MELISearch */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 86A865FE2F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MeLi-Lite" */;
+			buildConfigurationList = 86A865FE2F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MELISearch" */;
 			buildPhases = (
 				86A865D92F7F5B7B00913C9D /* Sources */,
 				86A865DA2F7F5B7B00913C9D /* Frameworks */,
@@ -108,18 +108,18 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				86A865DF2F7F5B7B00913C9D /* MeLi-Lite */,
+				86A865DF2F7F5B7B00913C9D /* MELISearch */,
 			);
-			name = "MeLi-Lite";
+			name = MELISearch;
 			packageProductDependencies = (
 			);
 			productName = "MeLi-Lite";
-			productReference = 86A865DD2F7F5B7B00913C9D /* MeLi-Lite.app */;
+			productReference = 86A865DD2F7F5B7B00913C9D /* MELISearch.app */;
 			productType = "com.apple.product-type.application";
 		};
-		86A865E92F7F5B7D00913C9D /* MeLi-LiteTests */ = {
+		86A865E92F7F5B7D00913C9D /* MELISearchTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 86A866012F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MeLi-LiteTests" */;
+			buildConfigurationList = 86A866012F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MELISearchTests" */;
 			buildPhases = (
 				86A865E62F7F5B7D00913C9D /* Sources */,
 				86A865E72F7F5B7D00913C9D /* Frameworks */,
@@ -131,18 +131,18 @@
 				86A865EC2F7F5B7D00913C9D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				86A865ED2F7F5B7D00913C9D /* MeLi-LiteTests */,
+				86A865ED2F7F5B7D00913C9D /* MELISearchTests */,
 			);
-			name = "MeLi-LiteTests";
+			name = MELISearchTests;
 			packageProductDependencies = (
 			);
 			productName = "MeLi-LiteTests";
-			productReference = 86A865EA2F7F5B7D00913C9D /* MeLi-LiteTests.xctest */;
+			productReference = 86A865EA2F7F5B7D00913C9D /* MELISearchTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		86A865F32F7F5B7D00913C9D /* MeLi-LiteUITests */ = {
+		86A865F32F7F5B7D00913C9D /* MELISearchUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 86A866042F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MeLi-LiteUITests" */;
+			buildConfigurationList = 86A866042F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MELISearchUITests" */;
 			buildPhases = (
 				86A865F02F7F5B7D00913C9D /* Sources */,
 				86A865F12F7F5B7D00913C9D /* Frameworks */,
@@ -154,13 +154,13 @@
 				86A865F62F7F5B7D00913C9D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				86A865F72F7F5B7D00913C9D /* MeLi-LiteUITests */,
+				86A865F72F7F5B7D00913C9D /* MELISearchUITests */,
 			);
-			name = "MeLi-LiteUITests";
+			name = MELISearchUITests;
 			packageProductDependencies = (
 			);
 			productName = "MeLi-LiteUITests";
-			productReference = 86A865F42F7F5B7D00913C9D /* MeLi-LiteUITests.xctest */;
+			productReference = 86A865F42F7F5B7D00913C9D /* MELISearchUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -186,7 +186,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 86A865D82F7F5B7B00913C9D /* Build configuration list for PBXProject "MeLi-Lite" */;
+			buildConfigurationList = 86A865D82F7F5B7B00913C9D /* Build configuration list for PBXProject "MELISearch" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -202,9 +202,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				86A865DC2F7F5B7B00913C9D /* MeLi-Lite */,
-				86A865E92F7F5B7D00913C9D /* MeLi-LiteTests */,
-				86A865F32F7F5B7D00913C9D /* MeLi-LiteUITests */,
+				86A865DC2F7F5B7B00913C9D /* MELISearch */,
+				86A865E92F7F5B7D00913C9D /* MELISearchTests */,
+				86A865F32F7F5B7D00913C9D /* MELISearchUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -260,12 +260,12 @@
 /* Begin PBXTargetDependency section */
 		86A865EC2F7F5B7D00913C9D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 86A865DC2F7F5B7B00913C9D /* MeLi-Lite */;
+			target = 86A865DC2F7F5B7B00913C9D /* MELISearch */;
 			targetProxy = 86A865EB2F7F5B7D00913C9D /* PBXContainerItemProxy */;
 		};
 		86A865F62F7F5B7D00913C9D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 86A865DC2F7F5B7B00913C9D /* MeLi-Lite */;
+			target = 86A865DC2F7F5B7B00913C9D /* MELISearch */;
 			targetProxy = 86A865F52F7F5B7D00913C9D /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -504,7 +504,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MeLi-Lite.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MeLi-Lite";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MELISearch.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MELISearch";
 				XROS_DEPLOYMENT_TARGET = 26.4;
 			};
 			name = Debug;
@@ -530,7 +530,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MeLi-Lite.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MeLi-Lite";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MELISearch.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MELISearch";
 				XROS_DEPLOYMENT_TARGET = 26.4;
 			};
 			name = Release;
@@ -588,7 +588,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		86A865D82F7F5B7B00913C9D /* Build configuration list for PBXProject "MeLi-Lite" */ = {
+		86A865D82F7F5B7B00913C9D /* Build configuration list for PBXProject "MELISearch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				86A865FC2F7F5B7D00913C9D /* Debug */,
@@ -597,7 +597,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		86A865FE2F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MeLi-Lite" */ = {
+		86A865FE2F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MELISearch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				86A865FF2F7F5B7D00913C9D /* Debug */,
@@ -606,7 +606,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		86A866012F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MeLi-LiteTests" */ = {
+		86A866012F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MELISearchTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				86A866022F7F5B7D00913C9D /* Debug */,
@@ -615,7 +615,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		86A866042F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MeLi-LiteUITests" */ = {
+		86A866042F7F5B7D00913C9D /* Build configuration list for PBXNativeTarget "MELISearchUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				86A866052F7F5B7D00913C9D /* Debug */,

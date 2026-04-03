@@ -33,6 +33,7 @@ struct SearchScreen: View {
         }
         .background(backgroundGradient.ignoresSafeArea())
         .navigationTitle("MELI Search")
+        .modifier(SearchNavigationSubtitleStyle(subtitle: navigationSubtitle))
         .modifier(SearchNavigationTitleStyle())
         .toolbar {
             searchFocusToolbarItem
@@ -204,6 +205,19 @@ private extension SearchScreen {
 
     var shouldShowConnectivityBanner: Bool {
         !viewModel.configuration.isUsingDemoData && connectivityMonitor.status == .disconnected
+    }
+
+    var navigationSubtitle: Text? {
+        guard let lastUpdatedAt = viewModel.lastUpdatedAt else {
+            return nil
+        }
+
+        switch viewModel.state {
+        case .loaded, .empty:
+            return Text("Last updated at \(lastUpdatedAt, format: .dateTime.hour().minute())")
+        case .idle, .loading, .failed:
+            return nil
+        }
     }
 
     var environmentBanner: some View {
@@ -428,6 +442,19 @@ private extension SearchScreen {
 
     func toggleSearchFocus() {
         isSearchFieldFocused.toggle()
+    }
+}
+
+private struct SearchNavigationSubtitleStyle: ViewModifier {
+    let subtitle: Text?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let subtitle {
+            content.navigationSubtitle(subtitle)
+        } else {
+            content
+        }
     }
 }
 
