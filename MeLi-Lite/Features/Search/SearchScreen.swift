@@ -4,14 +4,13 @@ import SwiftUI
 struct SearchScreen: View {
     @Bindable var viewModel: SearchViewModel
 
-    private let suggestions = ["iphone", "sony", "kindle", "garmin", "speaker"]
+    private let suggestions = ["iPhone", "Sony", "Kindle", "Garmin", "Speaker"]
     private let columns = [GridItem(.adaptive(minimum: 120), spacing: 12)]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 headerCard
-                searchBar
 
                 if viewModel.configuration.isUsingDemoData {
                     environmentBanner
@@ -26,6 +25,9 @@ struct SearchScreen: View {
         .modifier(SearchNavigationTitleStyle())
         .refreshable {
             await viewModel.repeatLastSearch()
+        }
+        .safeAreaInset(edge: searchBarEdge, spacing: 0) {
+            searchBarContainer
         }
     }
 }
@@ -60,6 +62,12 @@ private extension SearchScreen {
             ),
             in: RoundedRectangle(cornerRadius: 28, style: .continuous)
         )
+    }
+
+    var searchBarContainer: some View {
+        searchBar
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
     }
 
     var searchBar: some View {
@@ -97,6 +105,14 @@ private extension SearchScreen {
         }
         .padding(18)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    var searchBarEdge: VerticalEdge {
+        #if os(macOS)
+        .top
+        #else
+        .bottom
+        #endif
     }
 
     var environmentBanner: some View {
@@ -151,7 +167,7 @@ private extension SearchScreen {
                             await viewModel.applySuggestion(suggestion)
                         }
                     } label: {
-                        Text(suggestion.capitalized)
+                        Text(suggestion)
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                     }

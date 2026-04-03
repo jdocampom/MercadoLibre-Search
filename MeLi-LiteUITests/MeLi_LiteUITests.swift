@@ -27,11 +27,14 @@ final class MeLi_LiteUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        let searchField = app.textFields["searchTextField"]
-        XCTAssertTrue(searchField.waitForExistence(timeout: 3))
+        let searchDockButton = app.buttons["searchTextField"]
+        XCTAssertTrue(searchDockButton.waitForExistence(timeout: 3))
 
-        searchField.tap()
-        searchField.typeText("iphone")
+        searchDockButton.tap()
+
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 3))
+        searchField.typeText("iPhone")
         app.buttons["searchButton"].tap()
 
         let productTitle = app.staticTexts["iPhone 15 Pro 256 GB Natural Titanium"]

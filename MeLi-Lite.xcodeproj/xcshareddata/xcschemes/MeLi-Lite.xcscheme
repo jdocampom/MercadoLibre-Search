@@ -75,6 +75,23 @@
             ReferencedContainer = "container:MeLi-Lite.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "MELI_DATA_SOURCE"
+            value = "live"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "MELI_SITE_ID"
+            value = "MCO"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "MELI_ACCESS_TOKEN"
+            value = "APP_USR-2659519437949925-040309-facb783a64fb92f47c33db3e28588dc5-223606496"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

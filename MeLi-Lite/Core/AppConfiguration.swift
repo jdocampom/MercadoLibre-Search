@@ -24,12 +24,12 @@ struct AppConfiguration: Equatable, Sendable {
 
         return AppConfiguration(
             dataSource: dataSource,
-            siteID: environment["MELI_SITE_ID"]?.trimmedNonEmptyValue ?? "MLA",
+            siteID: environment["MELI_SITE_ID"]?.trimmedNonEmptyValue ?? "MCO",
             accessToken: accessToken
         )
     }()
 
-    static let preview = AppConfiguration(dataSource: .demo, siteID: "MLA", accessToken: nil)
+    static let preview = AppConfiguration(dataSource: .demo, siteID: "MCO", accessToken: nil)
 
     var isUsingDemoData: Bool {
         dataSource == .demo

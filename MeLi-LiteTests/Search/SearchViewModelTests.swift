@@ -22,17 +22,17 @@ struct SearchViewModelTests {
         let expectedProduct = TestFixtures.summary
         let viewModel = SearchViewModel(
             repository: .mock(search: { query in
-                #expect(query == "iphone")
+                #expect(query == "iPhone")
                 return [expectedProduct]
             }),
             configuration: .preview
         )
 
-        viewModel.query = "iphone"
+        viewModel.query = "iPhone"
         await viewModel.search()
 
         #expect(viewModel.state == .loaded)
-        #expect(viewModel.lastSubmittedQuery == "iphone")
+        #expect(viewModel.lastSubmittedQuery == "iPhone")
         #expect(viewModel.results == [expectedProduct])
     }
 
@@ -45,7 +45,7 @@ struct SearchViewModelTests {
             configuration: .preview
         )
 
-        viewModel.query = "iphone"
+        viewModel.query = "iPhone"
         await viewModel.search()
 
         #expect(viewModel.state == .failed(.forbidden))
