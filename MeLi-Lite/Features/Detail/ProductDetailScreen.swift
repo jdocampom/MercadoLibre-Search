@@ -284,6 +284,7 @@ private struct ProductDetailNavigationTitleStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .navigationBarTitleDisplayMode(.inline)
+            .modifier(AppNavigationBarStyle())
     }
 }
 #endif

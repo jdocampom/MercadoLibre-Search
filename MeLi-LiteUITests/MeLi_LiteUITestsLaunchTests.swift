@@ -7,13 +7,13 @@
 
 import XCTest
 
-final class MeLi_LiteUITestsLaunchTests: XCTestCase {
+nonisolated final class MeLi_LiteUITestsLaunchTests: XCTestCase {
 
-    override class var runsForEachTargetApplicationUIConfiguration: Bool {
+    nonisolated override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true
     }
 
-    override func setUpWithError() throws {
+    nonisolated override func setUpWithError() throws {
         continueAfterFailure = false
     }
 

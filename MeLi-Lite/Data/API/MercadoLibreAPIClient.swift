@@ -59,7 +59,10 @@ final class MercadoLibreAPIClient {
 
             guard 200 ..< 300 ~= httpResponse.statusCode else {
                 let mappedError = mapStatusCode(httpResponse.statusCode)
-                AppLogger.networking.error("HTTP failure: \(mappedError.developerDescription)")
+                let responseBody = String(data: data, encoding: .utf8) ?? "<non-UTF8 body>"
+                AppLogger.networking.error(
+                    "HTTP failure: \(mappedError.developerDescription). Response body: \(responseBody, privacy: .public)"
+                )
                 throw mappedError
             }
 

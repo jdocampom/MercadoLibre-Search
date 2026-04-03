@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SearchScreen: View {
     @Bindable var viewModel: SearchViewModel
+    @Bindable var connectivityMonitor: ConnectivityMonitor
 
     private let suggestions = ["iPhone", "Sony", "Kindle", "Garmin", "Speaker"]
     private let columns = [GridItem(.adaptive(minimum: 120), spacing: 12)]
@@ -10,7 +11,9 @@ struct SearchScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                headerCard
+                if shouldShowConnectivityBanner {
+                    connectivityBanner
+                }
 
                 if viewModel.configuration.isUsingDemoData {
                     environmentBanner
@@ -21,7 +24,7 @@ struct SearchScreen: View {
             .padding(20)
         }
         .background(backgroundGradient.ignoresSafeArea())
-        .navigationTitle("Mercado Libre Search")
+        .navigationTitle("MELI Search")
         .modifier(SearchNavigationTitleStyle())
         .refreshable {
             await viewModel.repeatLastSearch()
@@ -33,17 +36,17 @@ struct SearchScreen: View {
 }
 
 private extension SearchScreen {
-    var headerCard: some View {
+    var connectivityBanner: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Search products with a resilient MVVM flow.")
+            Label("No Internet Connection", systemImage: "wifi.slash")
                 .font(.system(.title2, design: .rounded, weight: .bold))
                 .foregroundStyle(.primary)
 
-            Text("The app preserves search state, surfaces errors clearly and navigates into a product detail flow ready for live Mercado Libre integration.")
+            Text("Reconnect to continue searching Mercado Libre products and refreshing live results.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Label(viewModel.configuration.environmentBadge, systemImage: "shippingbox.circle.fill")
+            Label("Live requests unavailable", systemImage: "exclamationmark.triangle.fill")
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -54,14 +57,15 @@ private extension SearchScreen {
         .background(
             LinearGradient(
                 colors: [
-                    Color(red: 0.99, green: 0.86, blue: 0.18),
-                    Color(red: 0.91, green: 0.95, blue: 1.00)
+                    Color(red: 0.99, green: 0.84, blue: 0.70),
+                    Color(red: 0.99, green: 0.94, blue: 0.89)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
             in: RoundedRectangle(cornerRadius: 28, style: .continuous)
         )
+        .accessibilityIdentifier("connectivityBanner")
     }
 
     var searchBarContainer: some View {
@@ -100,7 +104,7 @@ private extension SearchScreen {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(Color(red: 0.16, green: 0.33, blue: 0.71))
+            .tint(Color.accentColor)
             .accessibilityIdentifier("searchButton")
         }
         .padding(18)
@@ -113,6 +117,10 @@ private extension SearchScreen {
         #else
         .bottom
         #endif
+    }
+
+    var shouldShowConnectivityBanner: Bool {
+        !viewModel.configuration.isUsingDemoData && connectivityMonitor.status == .disconnected
     }
 
     var environmentBanner: some View {
@@ -155,7 +163,7 @@ private extension SearchScreen {
     var idleState: some View {
         VStack(alignment: .leading, spacing: 16) {
             ContentUnavailableView {
-                Label("Search the catalog", systemImage: "magnifyingglass.circle")
+                Label("Search the Catalog", systemImage: "magnifyingglass.circle")
             } description: {
                 Text("Start with one of the demo suggestions or type any product name.")
             }
@@ -169,6 +177,7 @@ private extension SearchScreen {
                     } label: {
                         Text(suggestion)
                             .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -284,6 +293,7 @@ private struct SearchNavigationTitleStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .navigationBarTitleDisplayMode(.large)
+            .modifier(AppNavigationBarStyle())
     }
 }
 #endif
