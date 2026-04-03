@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bucket
+   uuid = "819DB303-3FB6-41B3-A238-BFED1B4F4262"
+   type = "1"
+   version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "FCCCBE27-7C06-46B8-94BB-1806694F0A42"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "MeLi-Lite/Data/API/MercadoLibreAPIClient.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "43"
+            endingLineNumber = "43"
+            landmarkName = "validatedAccessToken()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "6AE1D755-3130-48E5-9EBD-7E95CAAB872F"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "MeLi-Lite/Data/API/MercadoLibreAPIClient.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "40"
+            endingLineNumber = "40"
+            landmarkName = "validatedAccessToken()"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "6AE1D755-3130-48E5-9EBD-7E95CAAB872F - 6775f2d36d6361ad"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "MeLi_Lite.MercadoLibreAPIClient.validatedAccessToken() throws -&gt; Swift.String"
+                  moduleName = "MeLi-Lite.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/juandiegoocampo/Downloads/MeLi-Lite/MeLi-Lite/Data/API/MercadoLibreAPIClient.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "40"
+                  endingLineNumber = "40">
+               </Location>
+               <Location
+                  uuid = "6AE1D755-3130-48E5-9EBD-7E95CAAB872F - 6775f2d36d6361ad"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "MeLi_Lite.MercadoLibreAPIClient.validatedAccessToken() throws -&gt; Swift.String"
+                  moduleName = "MeLi-Lite.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/juandiegoocampo/Downloads/MeLi-Lite/MeLi-Lite/Data/API/MercadoLibreAPIClient.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "40"
+                  endingLineNumber = "40">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
+</Bucket>
