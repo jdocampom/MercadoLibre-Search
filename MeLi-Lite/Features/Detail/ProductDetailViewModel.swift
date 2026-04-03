@@ -4,7 +4,9 @@ import OSLog
 
 @MainActor
 @Observable
+/// State holder that resolves and exposes product detail information for the detail screen.
 final class ProductDetailViewModel {
+    /// View state rendered by the detail screen.
     enum State: Equatable {
         case idle
         case loading
@@ -12,14 +14,23 @@ final class ProductDetailViewModel {
         case failed(AppError)
     }
 
+    /// Summary payload passed from the search screen during navigation.
     let product: ProductSummary
+    /// Runtime configuration exposed to the UI when needed.
     let configuration: AppConfiguration
 
+    /// Current loading state of the detail request.
     private(set) var state: State
+    /// Full product detail returned by the repository once available.
     private(set) var detail: ProductDetail?
 
     @ObservationIgnored private let repository: ProductRepository
 
+    /// Creates the detail state holder with the selected product and repository.
+    /// - Parameters:
+    ///   - product: Summary payload selected from the search results.
+    ///   - repository: Repository used to fetch full product details.
+    ///   - configuration: Runtime settings exposed to the UI layer.
     init(
         product: ProductSummary,
         repository: ProductRepository,
@@ -92,6 +103,7 @@ final class ProductDetailViewModel {
         detail?.description
     }
 
+    /// Avoids duplicate loading work once the first request has already started.
     func loadIfNeeded() async {
         guard case .idle = state else {
             return
@@ -100,10 +112,12 @@ final class ProductDetailViewModel {
         await load()
     }
 
+    /// Forces a new detail request, usually from pull-to-refresh or retry UI.
     func reload() async {
         await load()
     }
 
+    /// Resolves the detail payload and translates failures into view state.
     private func load() async {
         state = .loading
 

@@ -3,19 +3,23 @@ import Network
 import Observation
 
 extension Notification.Name {
+    /// Posted whenever the connectivity monitor transitions between known states.
     static let connectivityStatusDidChange = Notification.Name("ConnectivityMonitor.statusDidChange")
 }
 
+/// Simplified connectivity state consumed by the UI and tests.
 enum ConnectivityStatus: String, Equatable, Sendable {
     case unknown
     case connected
     case disconnected
 
+    /// Convenience flag for banner and refresh logic.
     var isConnected: Bool {
         self == .connected
     }
 }
 
+/// Notification payload keys emitted with connectivity status changes.
 enum ConnectivityStatusNotificationKey {
     static let previousStatus = "previousStatus"
     static let currentStatus = "currentStatus"
@@ -24,16 +28,21 @@ enum ConnectivityStatusNotificationKey {
 
 @MainActor
 @Observable
+/// Observes system reachability updates and exposes them through Observation-friendly state.
 final class ConnectivityMonitor {
+    /// Current connectivity state derived from `NWPathMonitor`.
     private(set) var status: ConnectivityStatus
 
     @ObservationIgnored private let notificationCenter: NotificationCenter
     @ObservationIgnored private var monitoringTask: Task<Void, Never>?
 
+    /// Mirrors the status enum for simpler call sites in the UI.
     var isConnected: Bool {
         status.isConnected
     }
 
+    /// Starts listening to live path updates using the system network monitor.
+    /// - Parameter notificationCenter: Notification center used to broadcast status changes.
     init(notificationCenter: NotificationCenter = .default) {
         self.notificationCenter = notificationCenter
         status = .unknown
@@ -44,6 +53,10 @@ final class ConnectivityMonitor {
         }
     }
 
+    /// Test-only initializer that injects a custom stream of connectivity updates.
+    /// - Parameters:
+    ///   - statusUpdates: Stream that emits mocked connectivity transitions.
+    ///   - notificationCenter: Notification center used to broadcast status changes.
     init(
         statusUpdates: AsyncStream<ConnectivityStatus>,
         notificationCenter: NotificationCenter = .default
@@ -61,6 +74,8 @@ final class ConnectivityMonitor {
         monitoringTask?.cancel()
     }
 
+    /// Applies a new status and broadcasts the transition only when the value changes.
+    /// - Parameter updatedStatus: Connectivity value produced by the active monitor stream.
     private func applyStatus(_ updatedStatus: ConnectivityStatus) {
         guard status != updatedStatus else {
             return
@@ -80,6 +95,9 @@ final class ConnectivityMonitor {
         )
     }
 
+    /// Bridges `NWPathMonitor` updates into an async sequence scoped to the monitor lifetime.
+    /// - Parameter queue: Dispatch queue used to run `NWPathMonitor`.
+    /// - Returns: An async stream that emits connectivity transitions.
     private static func liveStatusUpdates(
         queue: DispatchQueue = DispatchQueue(label: "ConnectivityMonitor.queue")
     ) -> AsyncStream<ConnectivityStatus> {
@@ -111,6 +129,8 @@ final class ConnectivityMonitor {
 }
 
 private extension ConnectivityStatus {
+    /// Maps the low-level network path status into the UI-focused connectivity model.
+    /// - Parameter pathStatus: Reachability status emitted by `NWPathMonitor`.
     nonisolated init(_ pathStatus: NWPath.Status) {
         switch pathStatus {
         case .satisfied:

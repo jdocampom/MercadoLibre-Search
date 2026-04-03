@@ -1,11 +1,17 @@
 import SwiftUI
 
+/// Product detail experience that expands a search result into richer product information.
 struct ProductDetailScreen: View {
     @State private var selectedImageIndex = 0
     @State private var viewModel: ProductDetailViewModel
 
     private let factColumns = [GridItem(.flexible()), GridItem(.flexible())]
 
+    /// Creates the detail screen with the dependencies required to fetch full item data.
+    /// - Parameters:
+    ///   - product: Summary payload selected from the search results.
+    ///   - repository: Repository used to fetch full product details.
+    ///   - configuration: Runtime settings for the current app session.
     init(
         product: ProductSummary,
         repository: ProductRepository,
@@ -179,6 +185,9 @@ private extension ProductDetailScreen {
         .background(sectionBackground)
     }
 
+    /// Builds the description section when the product exposes longer-form copy.
+    /// - Parameter descriptionText: Seller-provided product description.
+    /// - Returns: A styled section containing the product description.
     func descriptionSection(_ descriptionText: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Description")
@@ -192,6 +201,9 @@ private extension ProductDetailScreen {
         .background(sectionBackground)
     }
 
+    /// Builds the detail failure panel shown after a rejected or failed request.
+    /// - Parameter error: Domain error produced by the detail request.
+    /// - Returns: A retryable error card for the detail screen.
     func errorCard(_ error: AppError) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Detail request failed", systemImage: "exclamationmark.triangle.fill")
@@ -218,6 +230,9 @@ private extension ProductDetailScreen {
         .background(sectionBackground)
     }
 
+    /// Loads a remote image and falls back to the placeholder for empty or failed states.
+    /// - Parameter url: Remote image URL to render.
+    /// - Returns: An async image view backed by the provided URL.
     func remoteImage(_ url: URL) -> some View {
         AsyncImage(url: url) { phase in
             switch phase {
@@ -274,12 +289,14 @@ private extension ProductDetailScreen {
 }
 
 #if os(macOS)
+/// Leaves the default macOS navigation title behavior untouched.
 private struct ProductDetailNavigationTitleStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
     }
 }
 #else
+/// Applies the iOS navigation title and toolbar styling for the detail screen.
 private struct ProductDetailNavigationTitleStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -289,6 +306,7 @@ private struct ProductDetailNavigationTitleStyle: ViewModifier {
 }
 #endif
 
+/// Small reusable card for product facts and attribute values.
 private struct FactCard: View {
     let title: String
     let value: String

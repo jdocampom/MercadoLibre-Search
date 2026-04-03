@@ -1,16 +1,29 @@
 import Foundation
 
+/// Domain error used to normalize transport, decoding, and configuration failures.
 enum AppError: Error, LocalizedError, Equatable, Sendable {
+    /// Live mode was requested without a configured OAuth token.
     case missingAccessToken
+    /// The app could not build a valid Mercado Libre endpoint URL.
     case invalidURL
+    /// The server response was not an HTTP payload the app understands.
     case invalidResponse
+    /// Mercado Libre rejected the token with HTTP 401.
     case unauthorized
+    /// Mercado Libre refused the request with HTTP 403.
     case forbidden
+    /// Mercado Libre returned any other non-success HTTP status code.
     case httpStatus(Int)
+    /// JSON decoding failed after a successful transport response.
     case decoding(String)
+    /// URLSession reported a transport-level failure.
     case transport(URLError.Code)
+    /// Fallback wrapper for unexpected errors not covered above.
     case unknown(String)
 
+    /// Maps arbitrary errors into the app's domain-specific error model.
+    /// - Parameter error: Source error raised by the repository or transport layer.
+    /// - Returns: The closest `AppError` representation for the provided failure.
     static func from(_ error: Error) -> AppError {
         if let appError = error as? AppError {
             return appError
@@ -27,6 +40,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         return .unknown(error.localizedDescription)
     }
 
+    /// User-facing error message shown in SwiftUI error states.
     var errorDescription: String? {
         switch self {
         case .missingAccessToken:
@@ -55,6 +69,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         }
     }
 
+    /// Recovery guidance displayed when the app can suggest a next action.
     var recoverySuggestion: String? {
         switch self {
         case .missingAccessToken:
@@ -68,6 +83,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         }
     }
 
+    /// Detailed diagnostic text intended for logging and debugging.
     var developerDescription: String {
         switch self {
         case .missingAccessToken:

@@ -1,9 +1,11 @@
 import Observation
 import SwiftUI
 
+/// Main search experience for browsing Mercado Libre products.
 struct SearchScreen: View {
     @Bindable var viewModel: SearchViewModel
     @Bindable var connectivityMonitor: ConnectivityMonitor
+    @FocusState private var isSearchFieldFocused: Bool
 
     private let suggestions = ["iPhone", "Sony", "Kindle", "Garmin", "Speaker"]
     private let columns = [GridItem(.adaptive(minimum: 120), spacing: 12)]
@@ -26,6 +28,9 @@ struct SearchScreen: View {
         .background(backgroundGradient.ignoresSafeArea())
         .navigationTitle("MELI Search")
         .modifier(SearchNavigationTitleStyle())
+        .toolbar {
+            searchFocusToolbarItem
+        }
         .refreshable {
             await viewModel.repeatLastSearch()
         }
@@ -81,11 +86,13 @@ private extension SearchScreen {
 
             TextField("Search a product", text: $viewModel.query)
                 .modifier(SearchTextFieldPlatformStyle())
+                .focused($isSearchFieldFocused)
                 .accessibilityIdentifier("searchTextField")
                 .onSubmit {
                     Task {
                         await viewModel.search()
                     }
+                    isSearchFieldFocused = false
                 }
 
             if !viewModel.query.isEmpty {
@@ -102,6 +109,7 @@ private extension SearchScreen {
                 Task {
                     await viewModel.search()
                 }
+                isSearchFieldFocused = false
             }
             .buttonStyle(.borderedProminent)
             .tint(Color.accentColor)
@@ -117,6 +125,27 @@ private extension SearchScreen {
         #else
         .bottom
         #endif
+    }
+
+    @ToolbarContentBuilder
+    var searchFocusToolbarItem: some ToolbarContent {
+        #if os(macOS)
+        ToolbarItem(placement: .primaryAction) {
+            searchFocusButton
+        }
+        #else
+        ToolbarItem(placement: .topBarTrailing) {
+            searchFocusButton
+        }
+        #endif
+    }
+
+    var searchFocusButton: some View {
+        Button(action: toggleSearchFocus) {
+            Image(systemName: isSearchFieldFocused ? "keyboard.chevron.compact.down" : "magnifyingglass")
+        }
+        .accessibilityIdentifier("searchFocusButton")
+        .accessibilityLabel(isSearchFieldFocused ? "Dismiss search keyboard" : "Focus search field")
     }
 
     var shouldShowConnectivityBanner: Bool {
@@ -167,6 +196,7 @@ private extension SearchScreen {
             } description: {
                 Text("Start with one of the demo suggestions or type any product name.")
             }
+            .frame(maxWidth: .infinity)
 
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 ForEach(suggestions, id: \.self) { suggestion in
@@ -216,6 +246,9 @@ private extension SearchScreen {
         }
     }
 
+    /// Builds the search failure state with retry affordances and recovery guidance.
+    /// - Parameter error: Domain error produced by the search request.
+    /// - Returns: A view describing the failure and offering a retry action.
     func errorState(_ error: AppError) -> some View {
         VStack(spacing: 16) {
             ContentUnavailableView {
@@ -280,24 +313,30 @@ private extension SearchScreen {
         RoundedRectangle(cornerRadius: 24, style: .continuous)
             .fill(Color.white.opacity(0.82))
     }
+
+    func toggleSearchFocus() {
+        isSearchFieldFocused.toggle()
+    }
 }
 
 #if os(macOS)
+/// Leaves the default macOS title behavior untouched.
 private struct SearchNavigationTitleStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
     }
 }
 #else
+/// Applies the iOS navigation title and toolbar styling for the search screen.
 private struct SearchNavigationTitleStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .navigationBarTitleDisplayMode(.large)
             .modifier(AppNavigationBarStyle())
     }
 }
 #endif
 
+/// Applies platform-specific text-field tweaks without duplicating the search bar layout.
 private struct SearchTextFieldPlatformStyle: ViewModifier {
     func body(content: Content) -> some View {
         #if os(macOS)

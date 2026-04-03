@@ -1,6 +1,8 @@
 import SwiftUI
 
+/// Card-style row used to render a product inside the search result list.
 struct ProductRowView: View {
+    /// Product summary displayed by the row.
     let product: ProductSummary
 
     var body: some View {
@@ -85,6 +87,11 @@ private extension ProductRowView {
         }
     }
 
+    /// Builds a reusable capsule chip for secondary product metadata.
+    /// - Parameters:
+    ///   - title: Localized chip title shown to the user.
+    ///   - systemImage: SF Symbol name rendered next to the title.
+    /// - Returns: A styled metadata chip used by the product row.
     func chip(_ title: String, systemImage: String) -> some View {
         Label(title, systemImage: systemImage)
             .font(.caption.weight(.semibold))

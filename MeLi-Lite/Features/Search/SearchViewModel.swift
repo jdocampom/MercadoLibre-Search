@@ -4,7 +4,9 @@ import OSLog
 
 @MainActor
 @Observable
+/// State holder for the product search flow.
 final class SearchViewModel {
+    /// View state rendered by the search screen.
     enum State: Equatable {
         case idle
         case loading
@@ -13,15 +15,25 @@ final class SearchViewModel {
         case failed(AppError)
     }
 
+    /// Current user-entered query bound to the search field.
     var query: String
+    /// Latest product summaries returned by the repository.
     private(set) var results: [ProductSummary]
+    /// Current rendering state of the search screen.
     private(set) var state: State
+    /// Last non-empty query submitted to the repository.
     private(set) var lastSubmittedQuery: String
 
+    /// Runtime configuration exposed to the UI for environment messaging.
     let configuration: AppConfiguration
 
     @ObservationIgnored private let repository: ProductRepository
 
+    /// Creates the search state holder with an injected repository and initial query.
+    /// - Parameters:
+    ///   - repository: Repository that resolves search and detail requests.
+    ///   - configuration: Runtime settings exposed to the UI.
+    ///   - initialQuery: Initial search text, mainly used by previews or tests.
     init(
         repository: ProductRepository,
         configuration: AppConfiguration,
@@ -43,7 +55,9 @@ final class SearchViewModel {
         return false
     }
 
+    /// Normalizes the query, executes the search, and updates the screen state.
     func search() async {
+        // Persist the trimmed query so the text field and request always stay aligned.
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         query = normalizedQuery
 
@@ -68,6 +82,7 @@ final class SearchViewModel {
         }
     }
 
+    /// Replays the most recent successful submission for pull-to-refresh and retries.
     func repeatLastSearch() async {
         guard !lastSubmittedQuery.isEmpty else {
             return
@@ -77,6 +92,8 @@ final class SearchViewModel {
         await search()
     }
 
+    /// Applies a preset suggestion and immediately triggers a search.
+    /// - Parameter suggestion: Suggested query selected from the idle-state shortcuts.
     func applySuggestion(_ suggestion: String) async {
         query = suggestion
         await search()

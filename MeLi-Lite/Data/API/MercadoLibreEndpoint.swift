@@ -1,9 +1,15 @@
 import Foundation
 
+/// Mercado Libre endpoints supported by the application.
 enum MercadoLibreEndpoint {
+    /// Search endpoint scoped to a specific Mercado Libre site.
     case search(query: String, siteID: String)
+    /// Item detail endpoint for a selected listing identifier.
     case itemDetail(id: String)
 
+    /// Builds an authorized JSON request for the selected endpoint.
+    /// - Parameter accessToken: Bearer token used to authorize the request.
+    /// - Returns: A configured request ready for `URLSession`.
     func makeRequest(accessToken: String) throws -> URLRequest {
         var components = URLComponents()
         components.scheme = "https"
@@ -22,6 +28,7 @@ enum MercadoLibreEndpoint {
         return request
     }
 
+    /// Path component associated with the selected endpoint.
     private var path: String {
         switch self {
         case let .search(_, siteID):
@@ -31,6 +38,7 @@ enum MercadoLibreEndpoint {
         }
     }
 
+    /// Query items required by the selected endpoint.
     private var queryItems: [URLQueryItem] {
         switch self {
         case let .search(query, _):

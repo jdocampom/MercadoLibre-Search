@@ -1,9 +1,13 @@
 import Foundation
 
+/// Factory for the local fixture repository used in previews, tests, and offline demo flows.
 enum DemoProductRepository {
+    /// Creates a repository backed by static in-memory product fixtures.
+    /// - Returns: A repository that serves demo products without network access.
     static func makeRepository() -> ProductRepository {
         ProductRepository(
             search: { query in
+                // The demo catalog mirrors production behavior by ignoring blank submissions.
                 let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !normalizedQuery.isEmpty else {
                     return []
@@ -30,6 +34,7 @@ enum DemoProductRepository {
         )
     }
 
+    /// Static catalog used to exercise the full search and detail experience without network access.
     private static let catalog: [ProductDetail] = [
         ProductDetail(
             id: "DEMO-IPHONE-15-PRO",
@@ -138,6 +143,9 @@ enum DemoProductRepository {
         )
     ]
 
+    /// Keeps demo images empty so previews and CI do not depend on external connectivity.
+    /// - Parameter _: Fixture identifier reserved for future asset mapping.
+    /// - Returns: An empty list to guarantee offline-safe demo rendering.
     private static func imageURLs(for _: String) -> [URL] {
         // Demo mode must stay usable in CI, previews and sandboxed environments
         // where outbound DNS/network access may be blocked.
@@ -146,6 +154,7 @@ enum DemoProductRepository {
 }
 
 private extension ProductDetail {
+    /// Derives a summary model from a full demo detail fixture.
     var summary: ProductSummary {
         ProductSummary(
             id: id,
