@@ -69,7 +69,10 @@ struct AppErrorTests {
         let error = AppError.unauthorized
 
         #expect(error.errorDescription == "The configured Mercado Libre token is not valid anymore.")
-        #expect(error.recoverySuggestion == "Refresh your credentials or switch the app back to demo mode.")
+        #expect(
+            error.recoverySuggestion
+                == "Refresh your credentials, verify that MELI_SITE_ID matches the Mercado Libre account country, or switch the app back to demo mode."
+        )
         #expect(error.developerDescription == "Mercado Libre returned HTTP 401.")
     }
 

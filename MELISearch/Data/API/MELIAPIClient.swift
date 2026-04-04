@@ -7,6 +7,8 @@ final class MELIAPIClient {
     private let configuration: AppConfiguration
     /// Async provider that resolves a valid bearer token before each live request.
     private let accessTokenProvider: @MainActor () async throws -> String
+    /// Session used to execute Mercado Libre API requests.
+    private let urlSession: URLSession
     /// In-memory cache that avoids refetching detail screens during the same session.
     private var detailCache: [String: ProductDetail] = [:]
 
@@ -16,10 +18,12 @@ final class MELIAPIClient {
     ///   - accessTokenProvider: Async provider that returns a valid bearer token.
     init(
         configuration: AppConfiguration,
-        accessTokenProvider: @escaping @MainActor () async throws -> String
+        accessTokenProvider: @escaping @MainActor () async throws -> String,
+        urlSession: URLSession = .shared
     ) {
         self.configuration = configuration
         self.accessTokenProvider = accessTokenProvider
+        self.urlSession = urlSession
     }
 
     /// Executes a search request and maps the response into summary models.
@@ -52,18 +56,62 @@ final class MELIAPIClient {
     /// - Parameter endpoint: API endpoint to request.
     /// - Returns: A decoded payload of the expected type.
     private func request<T: Decodable>(endpoint: MELIEndpoint) async throws -> T {
-        let accessToken = try await accessTokenProvider()
+        if endpoint.prefersAnonymousAccess {
+            return try await performRequest(endpoint: endpoint, accessToken: nil)
+        }
+
+        let preferredAccessToken: String?
+
+        do {
+            preferredAccessToken = try await accessTokenProvider()
+        } catch {
+            let appError = AppError.from(error)
+            if endpoint.allowsAnonymousAccess, appError == .missingAccessToken {
+                AppLogger.networking.info(
+                    "No bearer token available for public Mercado Libre endpoint. Retrying anonymously."
+                )
+                return try await performRequest(endpoint: endpoint, accessToken: nil)
+            }
+
+            throw appError
+        }
+
+        return try await performRequest(
+            endpoint: endpoint,
+            accessToken: preferredAccessToken,
+            allowsAnonymousRetry: endpoint.allowsAnonymousAccess
+        )
+    }
+
+    /// Executes the underlying HTTP request and optionally retries public catalog resources without auth.
+    /// - Parameters:
+    ///   - endpoint: API endpoint to request.
+    ///   - accessToken: Bearer token to attach when available.
+    ///   - allowsAnonymousRetry: Indicates whether a 403 should trigger one anonymous retry.
+    /// - Returns: A decoded payload of the expected type.
+    private func performRequest<T: Decodable>(
+        endpoint: MELIEndpoint,
+        accessToken: String?,
+        allowsAnonymousRetry: Bool = false
+    ) async throws -> T {
         let request = try endpoint.makeRequest(accessToken: accessToken)
         AppLogger.networking.debug("Requesting \(request.url?.absoluteString ?? "unknown")")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw AppError.invalidResponse
             }
 
             guard 200 ..< 300 ~= httpResponse.statusCode else {
+                if httpResponse.statusCode == 403, allowsAnonymousRetry, accessToken != nil {
+                    AppLogger.networking.info(
+                        "Public Mercado Libre catalog endpoint returned 403 with bearer token. Retrying without Authorization header."
+                    )
+                    return try await performRequest(endpoint: endpoint, accessToken: nil, allowsAnonymousRetry: false)
+                }
+
                 let mappedError = mapStatusCode(httpResponse.statusCode)
                 let responseBody = String(data: data, encoding: .utf8) ?? "<non-UTF8 body>"
                 AppLogger.networking.error(

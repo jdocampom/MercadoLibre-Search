@@ -7,10 +7,28 @@ enum MELIEndpoint {
     /// Item detail endpoint for a selected listing identifier.
     case itemDetail(id: String)
 
+    /// Indicates whether the endpoint should be called without a bearer token by default.
+    var prefersAnonymousAccess: Bool {
+        switch self {
+        case .search:
+            return true
+        case .itemDetail:
+            return true
+        }
+    }
+
+    /// Indicates whether the endpoint is part of Mercado Libre's public catalog surface.
+    var allowsAnonymousAccess: Bool {
+        switch self {
+        case .search, .itemDetail:
+            return true
+        }
+    }
+
     /// Builds an authorized JSON request for the selected endpoint.
     /// - Parameter accessToken: Bearer token used to authorize the request.
     /// - Returns: A configured request ready for `URLSession`.
-    func makeRequest(accessToken: String) throws -> URLRequest {
+    func makeRequest(accessToken: String?) throws -> URLRequest {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.mercadolibre.com"
@@ -24,7 +42,11 @@ enum MELIEndpoint {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+        if let accessToken, !accessToken.isEmpty {
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        }
+
         return request
     }
 

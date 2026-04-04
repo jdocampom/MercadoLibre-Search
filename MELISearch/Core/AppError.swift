@@ -91,7 +91,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         case .invalidAuthorizationCallback:
             return "Start Mercado Libre authorization again from the app so it can generate a fresh callback for this OAuth attempt."
         case .unauthorized, .forbidden:
-            return "Refresh your credentials or switch the app back to demo mode."
+            return "Refresh your credentials, verify that MELI_SITE_ID matches the Mercado Libre account country, or switch the app back to demo mode."
         case .transport(.notConnectedToInternet):
             return "Check your network connection and try again."
         case .transport(.cannotFindHost), .transport(.dnsLookupFailed):
@@ -119,7 +119,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         case .unauthorized:
             return "Mercado Libre returned HTTP 401."
         case .forbidden:
-            return "Mercado Libre returned HTTP 403."
+            return "Mercado Libre returned HTTP 403. The bearer token may not be allowed for this user or Mercado Libre site."
         case let .httpStatus(statusCode):
             return "Mercado Libre returned unexpected HTTP status \(statusCode)."
         case let .decoding(message):

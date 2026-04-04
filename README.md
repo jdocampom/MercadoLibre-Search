@@ -87,7 +87,7 @@ flowchart LR
 
 ### Live mode
 
-`live` mode uses `LiveProductRepository`, `MELIAPIClient`, and `MELIAuthenticationSession`. Mercado Libre product requests may reject anonymous access, so live requests should be treated as authenticated-only in practice.
+`live` mode uses `LiveProductRepository`, `MELIAPIClient`, and `MELIAuthenticationSession`. The app still resolves and validates OAuth sessions, but public catalog requests can retry anonymously when Mercado Libre rejects the current bearer token with `403`.
 
 The search screen exposes a runtime menu to switch between both modes. Switching mode rebuilds the app container and resets navigation and search state so the UI reflects the newly selected backend immediately.
 
@@ -123,6 +123,7 @@ Mercado Libre Dev Center requires an `https://` redirect URL. The shared `MELISe
 - The token exchange uses `POST https://api.mercadolibre.com/oauth/token` with `grant_type=authorization_code`. The current implementation validates `state` and does not send PKCE parameters.
 - Successful responses persist `access_token`, `refresh_token`, expiration, `scope`, and `user_id` in Keychain. `signOut()` deletes that stored item.
 - Closing the embedded browser before capture calls `cancelInteractiveAuthorization()`, which clears only the pending auth attempt and keeps any previously stored session intact.
+- Public catalog endpoints such as `/sites/{site}/search` and `/items/{id}` retry once without the `Authorization` header when Mercado Libre returns `403` for the bearer token. Session validation with `/users/me` remains authenticated-only.
 
 ### End-to-end authentication lifecycle
 
