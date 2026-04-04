@@ -133,6 +133,13 @@ private extension OAuthAuthorizationWebViewSheet {
 #if os(macOS)
     /// Applies browser loading updates from the wrapped `WKWebView`.
     func updateNavigationState(isLoading: Bool, estimatedProgress: Double) {
+        guard
+            self.isLoading != isLoading
+                || abs(self.estimatedProgress - estimatedProgress) > 0.001
+        else {
+            return
+        }
+
         self.isLoading = isLoading
         self.estimatedProgress = estimatedProgress
     }
@@ -140,6 +147,10 @@ private extension OAuthAuthorizationWebViewSheet {
     /// Stores load failures unless the callback was already captured and the navigation was cancelled on purpose.
     func updateLoadError(_ message: String?) {
         guard !didCaptureCallback else {
+            return
+        }
+
+        guard loadErrorMessage != message else {
             return
         }
 
@@ -281,7 +292,7 @@ private extension OAuthAuthorizationWebView {
             }
 
             loadedAuthorizationURL = parent.authorizationURL
-            parent.onLoadError(nil)
+            publishLoadError(nil)
             webView.load(URLRequest(url: parent.authorizationURL))
         }
 
@@ -290,20 +301,32 @@ private extension OAuthAuthorizationWebView {
             observations = [
                 webView.observe(\.estimatedProgress, options: [.initial, .new]) { [weak self] webView, _ in
                     Task { @MainActor [weak self] in
-                        self?.reportNavigationState(for: webView)
+                        self?.publishNavigationState(for: webView)
                     }
                 },
                 webView.observe(\.isLoading, options: [.initial, .new]) { [weak self] webView, _ in
                     Task { @MainActor [weak self] in
-                        self?.reportNavigationState(for: webView)
+                        self?.publishNavigationState(for: webView)
                     }
                 }
             ]
         }
 
-        /// Pushes the current WebKit loading state back into SwiftUI.
-        func reportNavigationState(for webView: WKWebView) {
-            parent.onNavigationStateChange(webView.isLoading, webView.estimatedProgress)
+        /// Pushes the current WebKit loading state back into SwiftUI on the next main-run-loop turn.
+        func publishNavigationState(for webView: WKWebView) {
+            let isLoading = webView.isLoading
+            let estimatedProgress = webView.estimatedProgress
+
+            DispatchQueue.main.async { [parent] in
+                parent.onNavigationStateChange(isLoading, estimatedProgress)
+            }
+        }
+
+        /// Surfaces browser load errors on the next main-run-loop turn.
+        func publishLoadError(_ message: String?) {
+            DispatchQueue.main.async { [parent] in
+                parent.onLoadError(message)
+            }
         }
 
         /// Handles provisional redirects and stops once the OAuth callback is reached.
@@ -350,8 +373,8 @@ private extension OAuthAuthorizationWebView {
 
         /// Clears any previous browser error after a successful load.
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            reportNavigationState(for: webView)
-            parent.onLoadError(nil)
+            publishNavigationState(for: webView)
+            publishLoadError(nil)
         }
 
         /// Surfaces provisional navigation failures, ignoring the cancellation we trigger after capture.
@@ -367,12 +390,12 @@ private extension OAuthAuthorizationWebView {
         /// Normalizes WebKit failures into a concise user-visible message.
         func handleNavigationFailure(_ error: Error, in webView: WKWebView) {
             guard !shouldIgnoreNavigationFailure(error) else {
-                reportNavigationState(for: webView)
+                publishNavigationState(for: webView)
                 return
             }
 
-            reportNavigationState(for: webView)
-            parent.onLoadError(userFacingMessage(for: error))
+            publishNavigationState(for: webView)
+            publishLoadError(userFacingMessage(for: error))
         }
 
         /// Redirects and callback cancellation routinely surface as `NSURLErrorCancelled`; these are expected.
