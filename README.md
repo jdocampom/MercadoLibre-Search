@@ -115,8 +115,9 @@ Mercado Libre Dev Center requires an `https://` redirect URL. The shared `MELISe
 ### Interactive auth behavior
 
 - `authorizationURL()` creates a fresh in-memory `state`, switches the session to `.authorizing`, and builds the Mercado Libre `/authorization` URL.
-- `OAuthAuthorizationWebViewSheet` loads that URL inside an embedded SwiftUI WebKit browser using `WebPage` and `WebView`.
-- The sheet watches `page.url` and `page.isLoading`, and only captures the callback after the callback page finishes loading.
+- On macOS, `OAuthAuthorizationWebViewSheet` loads that URL inside an embedded `WKWebView` wrapper because the newer SwiftUI browser APIs were not reliable for this OAuth flow.
+- On iOS-family platforms, the sheet continues to use SwiftUI's `WebPage` and `WebView`.
+- The macOS browser intercepts navigation actions and captures the callback as soon as WebKit attempts to navigate to the registered redirect URL. The iOS browser keeps watching `page.url` and `page.isLoading` and captures the callback after the redirect page finishes loading.
 - A callback is accepted only when its scheme, host, port, and path exactly match `MELI_REDIRECT_URL`.
 - The callback must also contain both `code` and the same `state` generated for the current attempt. Raw authorization codes, stale states, and mismatched hosts are rejected as `invalidAuthorizationCallback`.
 - When the embedded browser reaches the registered callback, the full callback URL is copied into the form and the code exchange starts automatically. Manual paste-and-submit remains available as a fallback.
