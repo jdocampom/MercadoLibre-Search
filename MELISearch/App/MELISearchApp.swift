@@ -1,5 +1,5 @@
 //
-//  MeLiLiteApp.swift
+//  MELISearchApp.swift
 //  MeLi-Lite
 //
 //  Created by Juan Diego Ocampo on 4/2/26.
@@ -9,7 +9,7 @@ import SwiftUI
 
 /// The application entry point that builds the dependency container once and injects it into the root UI.
 @main
-struct MeLiLiteApp: App {
+struct MELISearchApp: App {
     /// The shared dependency graph used by the initial scene.
     private let container = AppContainer.main()
 
