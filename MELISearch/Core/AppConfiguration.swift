@@ -10,6 +10,12 @@ struct AppConfiguration: Equatable, Sendable {
         case live
     }
 
+    /// Test-only authentication overrides used to make UI states deterministic in UI tests.
+    enum UITestAuthenticationState: String, Sendable {
+        /// Forces the auth session into an authenticated state without requiring real Keychain data.
+        case authenticated
+    }
+
     /// Active backend mode for the current process.
     let dataSource: DataSource
     /// Mercado Libre site identifier used to scope searches.
@@ -24,6 +30,8 @@ struct AppConfiguration: Equatable, Sendable {
     let oauthRedirectURL: URL?
     /// Authorization host used to open the Mercado Libre grant page.
     let oauthAuthorizationHost: String?
+    /// Optional UI-test-only authentication override.
+    let uiTestAuthenticationState: UITestAuthenticationState?
 
     /// Default configuration loaded from scheme or process environment variables.
     static let current = resolve(environment: ProcessInfo.processInfo.environment)
@@ -57,7 +65,9 @@ struct AppConfiguration: Equatable, Sendable {
             oauthClientID: environment["MELI_APP_ID"]?.trimmedNonEmptyValue,
             oauthClientSecret: environment["MELI_CLIENT_SECRET"]?.trimmedNonEmptyValue,
             oauthRedirectURL: environment["MELI_REDIRECT_URL"]?.trimmedNonEmptyValue.flatMap(URL.init(string:)),
-            oauthAuthorizationHost: oauthAuthorizationHost
+            oauthAuthorizationHost: oauthAuthorizationHost,
+            uiTestAuthenticationState: environment["MELI_UI_TEST_AUTH_STATE"]
+                .flatMap(UITestAuthenticationState.init(rawValue:))
         )
     }
 
@@ -69,7 +79,8 @@ struct AppConfiguration: Equatable, Sendable {
         oauthClientID: nil,
         oauthClientSecret: nil,
         oauthRedirectURL: nil,
-        oauthAuthorizationHost: MELIOAuthConfiguration.defaultAuthorizationHost(forSiteID: "MCO")
+        oauthAuthorizationHost: MELIOAuthConfiguration.defaultAuthorizationHost(forSiteID: "MCO"),
+        uiTestAuthenticationState: nil
     )
 
     /// Indicates whether the app should avoid live network calls.
@@ -129,7 +140,8 @@ struct AppConfiguration: Equatable, Sendable {
             oauthClientID: oauthClientID,
             oauthClientSecret: oauthClientSecret,
             oauthRedirectURL: oauthRedirectURL,
-            oauthAuthorizationHost: oauthAuthorizationHost
+            oauthAuthorizationHost: oauthAuthorizationHost,
+            uiTestAuthenticationState: uiTestAuthenticationState
         )
     }
 }

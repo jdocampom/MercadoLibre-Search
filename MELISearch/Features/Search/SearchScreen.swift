@@ -16,6 +16,8 @@ struct SearchScreen: View {
     @FocusState private var isSearchFieldFocused: Bool
     /// Controls whether the OAuth setup sheet is currently visible.
     @State private var isOAuthSheetPresented = false
+    /// Controls whether the live authentication banner shows its full detail.
+    @State private var isAuthenticationBannerExpanded = true
 
     /// Curated demo suggestions shown in the idle state.
     private let suggestions = ["iPhone", "Sony", "Kindle", "Garmin", "Speaker"]
@@ -59,9 +61,13 @@ struct SearchScreen: View {
         }
         .task {
             await authenticationSession.prepareIfNeeded()
+            syncAuthenticationBannerExpansion(animated: false)
             if authenticationSession.shouldPromptForAuthorization {
                 isOAuthSheetPresented = true
             }
+        }
+        .onChange(of: authenticationSession.status) { _, _ in
+            syncAuthenticationBannerExpansion()
         }
     }
 }
@@ -270,48 +276,71 @@ private extension SearchScreen {
     /// Banner that explains live-session status and exposes OAuth-related actions.
     var liveAuthorizationBanner: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(authenticationSession.statusTitle, systemImage: "person.crop.circle.badge.checkmark")
-                .font(.headline)
-
-            Text(authenticationSession.statusMessage)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
             HStack(spacing: 12) {
-                Button(authenticationSession.isAuthenticated ? "Manage OAuth" : "Connect OAuth") {
-                    isOAuthSheetPresented = true
-                }
-                .buttonStyle(.borderedProminent)
+                Label(authenticationSession.statusTitle, systemImage: "person.crop.circle.badge.checkmark")
+                    .font(.headline)
 
-                if authenticationSession.canValidateCurrentSession {
-                    Button(authenticationSession.isValidatingCurrentSession ? "Validating…" : "Validate Session") {
-                        Task {
-                            await authenticationSession.validateCurrentSession()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(authenticationSession.isValidatingCurrentSession)
-                }
+                Spacer()
 
                 if authenticationSession.isAuthenticated {
-                    Button("Forget Session", role: .destructive) {
-                        authenticationSession.signOut()
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-
-            if authenticationSession.shouldShowSessionValidationStatus {
-                Divider()
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(authenticationSession.sessionValidationTitle)
-                        .font(.subheadline.weight(.semibold))
-
-                    Text(authenticationSession.sessionValidationMessage)
-                        .font(.caption)
+                    Image(systemName: isAuthenticationBannerExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: toggleAuthenticationBannerExpansion)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(authenticationSession.statusTitle)
+            .accessibilityIdentifier("liveAuthorizationBannerToggle")
+            .accessibilityValue(isAuthenticationBannerExpanded ? "expanded" : "collapsed")
+
+            if shouldShowExpandedAuthenticationBannerContent {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(authenticationSession.statusMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 12) {
+                        Button(authenticationSession.isAuthenticated ? "Manage OAuth" : "Connect OAuth") {
+                            isOAuthSheetPresented = true
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        if authenticationSession.canValidateCurrentSession {
+                            Button(authenticationSession.isValidatingCurrentSession ? "Validating…" : "Validate Session") {
+                                Task {
+                                    await authenticationSession.validateCurrentSession()
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(authenticationSession.isValidatingCurrentSession)
+                        }
+
+                        if authenticationSession.isAuthenticated {
+                            Button("Forget Session", role: .destructive) {
+                                authenticationSession.signOut()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+
+                    if authenticationSession.shouldShowSessionValidationStatus {
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(authenticationSession.sessionValidationTitle)
+                                .font(.subheadline.weight(.semibold))
+
+                            Text(authenticationSession.sessionValidationMessage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .accessibilityIdentifier("liveAuthorizationBannerDetails")
             }
         }
         .frame(maxWidth: .infinity)
@@ -320,6 +349,8 @@ private extension SearchScreen {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(Color.white.opacity(0.8))
         )
+        .animation(.snappy(duration: 0.2), value: isAuthenticationBannerExpanded)
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
@@ -483,6 +514,35 @@ private extension SearchScreen {
     /// Toggles the current keyboard focus state for the search field.
     func toggleSearchFocus() {
         isSearchFieldFocused.toggle()
+    }
+
+    /// Indicates whether the live authentication banner should reveal its full content.
+    var shouldShowExpandedAuthenticationBannerContent: Bool {
+        !authenticationSession.isAuthenticated || isAuthenticationBannerExpanded
+    }
+
+    /// Collapses the banner by default when auth is already ready and expands it otherwise.
+    func syncAuthenticationBannerExpansion(animated: Bool = true) {
+        let shouldExpand = !authenticationSession.isAuthenticated
+
+        if animated {
+            withAnimation(.snappy(duration: 0.2)) {
+                isAuthenticationBannerExpanded = shouldExpand
+            }
+        } else {
+            isAuthenticationBannerExpanded = shouldExpand
+        }
+    }
+
+    /// Lets the user reveal or hide the full live-session details once authentication is ready.
+    func toggleAuthenticationBannerExpansion() {
+        guard authenticationSession.isAuthenticated else {
+            return
+        }
+
+        withAnimation(.snappy(duration: 0.2)) {
+            isAuthenticationBannerExpanded.toggle()
+        }
     }
 }
 

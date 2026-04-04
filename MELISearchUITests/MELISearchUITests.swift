@@ -38,6 +38,22 @@ nonisolated final class MELISearchUITests: XCTestCase {
         XCTAssertFalse(app.element(withID: "productRow_DEMO-IPHONE-15-PRO").exists)
     }
 
+    /// Verifies that the authenticated live OAuth banner starts collapsed and can be expanded on demand.
+    @MainActor
+    func testAuthenticatedLiveOAuthBannerStartsCollapsedAndExpands() throws {
+        let app = launchLiveAuthenticatedApp()
+
+        let bannerToggle = app.element(withID: "liveAuthorizationBannerToggle")
+
+        XCTAssertTrue(bannerToggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(bannerToggle.value as? String, "collapsed")
+
+        bannerToggle.click()
+        XCTAssertTrue(waitForValue("expanded", in: bannerToggle))
+
+        bannerToggle.click()
+        XCTAssertTrue(waitForValue("collapsed", in: bannerToggle))
+    }
 }
 
 private extension MELISearchUITests {
@@ -46,6 +62,15 @@ private extension MELISearchUITests {
     @MainActor
     func launchDemoApp() -> XCUIApplication {
         let app = configuredDemoApp()
+        app.launch()
+        return app
+    }
+
+    /// Launches the app in live mode with a deterministic authenticated session used for UI testing.
+    /// - Returns: A running application instance ready for banner assertions.
+    @MainActor
+    func launchLiveAuthenticatedApp() -> XCUIApplication {
+        let app = configuredLiveAuthenticatedApp()
         app.launch()
         return app
     }
@@ -68,6 +93,25 @@ private extension MELISearchUITests {
         return app
     }
 
+    /// Builds the application instance in live mode with a deterministic authenticated banner state.
+    /// - Returns: A configured but not yet launched application.
+    @MainActor
+    func configuredLiveAuthenticatedApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        app.launchEnvironment["MELI_DATA_SOURCE"] = "live"
+        app.launchEnvironment["MELI_SITE_ID"] = "MCO"
+        app.launchEnvironment["MELI_ACCESS_TOKEN"] = ""
+        app.launchEnvironment["MELI_APP_ID"] = ""
+        app.launchEnvironment["MELI_CLIENT_SECRET"] = ""
+        app.launchEnvironment["MELI_REDIRECT_URL"] = ""
+        app.launchEnvironment["MELI_UI_TEST_AUTH_STATE"] = "authenticated"
+        return app
+    }
+
     /// Types a query into the search field and taps the primary submit button.
     /// - Parameters:
     ///   - query: Search text to submit.
@@ -82,6 +126,19 @@ private extension MELISearchUITests {
         let searchButton = app.element(withID: "searchButton")
         XCTAssertTrue(searchButton.waitForExistence(timeout: 5))
         searchButton.tap()
+    }
+
+    /// Waits until an element publishes the expected accessibility value.
+    /// - Parameters:
+    ///   - expectedValue: Accessibility value that should be exposed by the element.
+    ///   - element: UI element under observation.
+    ///   - timeout: Maximum wait in seconds before failing the expectation.
+    /// - Returns: `true` when the value matches within the timeout window.
+    @MainActor
+    func waitForValue(_ expectedValue: String, in element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "value == %@", expectedValue)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }
 

@@ -36,7 +36,7 @@ struct MELIAPIClientTests {
 }
 
 private enum PublicCatalogFallbackRequestRecorder {
-    private static let lock = NSLock()
+    nonisolated(unsafe) private static let lock = NSLock()
     nonisolated(unsafe) private static var authorizationHeaders: [String?] = []
 
     nonisolated static func reset() {

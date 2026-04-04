@@ -110,6 +110,9 @@ import OSLog
 
         if configuration.isUsingDemoData {
             status = .demoMode
+        } else if configuration.uiTestAuthenticationState == .authenticated {
+            status = .authenticated
+            currentUserID = 999_999
         } else if configuration.accessToken != nil {
             status = .usingEnvironmentAccessToken
         } else if oauthConfiguration == nil {
@@ -267,6 +270,10 @@ import OSLog
 
         hasPrepared = true
         latestError = nil
+
+        if applyUITestAuthenticationOverride() {
+            return
+        }
 
         guard !configuration.isUsingDemoData else {
             status = .demoMode
@@ -790,5 +797,24 @@ private extension MELIAuthenticationSession {
         default:
             return .httpStatus(statusCode)
         }
+    }
+
+    /// Applies deterministic auth state overrides used only by UI tests.
+    /// - Returns: `true` when a test override replaced the normal auth bootstrap.
+    func applyUITestAuthenticationOverride() -> Bool {
+        guard let uiTestAuthenticationState = configuration.uiTestAuthenticationState else {
+            return false
+        }
+
+        latestError = nil
+        sessionValidation = .idle
+
+        switch uiTestAuthenticationState {
+        case .authenticated:
+            status = .authenticated
+            currentUserID = 999_999
+        }
+
+        return true
     }
 }
