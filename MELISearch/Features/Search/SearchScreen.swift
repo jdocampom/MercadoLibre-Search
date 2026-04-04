@@ -401,7 +401,7 @@ private extension SearchScreen {
     func errorState(_ error: AppError) -> some View {
         VStack(spacing: 16) {
             ContentUnavailableView {
-                Label("Search failed", systemImage: "wifi.exclamationmark")
+                Label("Search Failed", systemImage: "wifi.exclamationmark")
             } description: {
                 Text(error.localizedDescription)
             } actions: {

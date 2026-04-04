@@ -55,7 +55,7 @@ struct ContentView: View {
         }
         .onOpenURL { url in
             Task {
-                _ = await authenticationSession.completeAuthorization(from: url.absoluteString)
+                _ = await authenticationSession.completeAuthorizationIfPossible(from: url)
             }
         }
     }

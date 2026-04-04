@@ -201,9 +201,9 @@ import OSLog
         case .missingConfiguration:
             return "Set MELI_APP_ID, MELI_CLIENT_SECRET, and MELI_REDIRECT_URL to complete the OAuth flow."
         case .signedOut:
-            return "Open the Mercado Libre authorization page, then paste the full callback URL returned by the same authorization attempt."
+            return "Open the Mercado Libre authorization page in the in-app web view. When the registered callback finishes loading, MELI Search will copy that URL into the callback field."
         case .authorizing:
-            return "The browser can now request access. After approving the app, come back and paste the full callback URL so the app can validate state."
+            return "Complete the Mercado Libre consent flow in the in-app web view. MELI Search is waiting for the registered callback URL to appear."
         case .exchangingCode:
             return "The app is exchanging the authorization code for a live access token."
         case .refreshing:
@@ -334,6 +334,17 @@ import OSLog
         return url
     }
 
+    /// Indicates whether an incoming app URL matches the registered redirect for the active OAuth attempt.
+    /// - Parameter callbackURL: URL opened by the system and offered back to the app.
+    /// - Returns: `true` when the URL should be treated as the callback for the current authorization flow.
+    func canHandleAuthorizationCallback(_ callbackURL: URL) -> Bool {
+        guard let oauthConfiguration, pendingAuthorization != nil else {
+            return false
+        }
+
+        return callbackMatchesRegisteredRedirect(callbackURL, expected: oauthConfiguration.redirectURL)
+    }
+
     /// Completes the OAuth flow from a pasted callback URL returned by the current authorization attempt.
     /// - Parameter callbackInput: Full redirect URL returned by Mercado Libre for the current browser flow.
     /// - Returns: `true` when token exchange succeeded and the session was persisted.
@@ -348,6 +359,36 @@ import OSLog
             status = .failed(appError)
             AppLogger.authentication.error("OAuth completion failed: \(appError.developerDescription)")
             return false
+        }
+    }
+
+    /// Completes the OAuth flow only when an incoming URL matches the registered redirect for the current attempt.
+    /// - Parameter callbackURL: URL delivered back to the app by a custom scheme or universal-link style redirect.
+    /// - Returns: `true` when the URL matched the pending redirect and token exchange succeeded.
+    @discardableResult
+    func completeAuthorizationIfPossible(from callbackURL: URL) async -> Bool {
+        guard canHandleAuthorizationCallback(callbackURL) else {
+            return false
+        }
+
+        return await completeAuthorization(from: callbackURL.absoluteString)
+    }
+
+    /// Clears an interrupted interactive authorization attempt without deleting stored credentials.
+    func cancelInteractiveAuthorization() {
+        pendingAuthorization = nil
+        latestError = nil
+
+        if configuration.isUsingDemoData {
+            status = .demoMode
+        } else if configuration.accessToken != nil {
+            status = .usingEnvironmentAccessToken
+        } else if persistedCredentials != nil {
+            status = .authenticated
+        } else if canAuthorizeInteractively {
+            status = .signedOut
+        } else {
+            status = .missingConfiguration
         }
     }
 

@@ -251,6 +251,20 @@ struct MELIAuthenticationSessionTests {
     }
 
     @Test
+    func completeAuthorizationIfPossibleIgnoresUnrelatedIncomingURLs() async throws {
+        let session = MELIAuthenticationSession(configuration: liveOAuthConfiguration())
+        _ = try session.authorizationURL()
+
+        let didAuthorize = await session.completeAuthorizationIfPossible(
+            from: try #require(URL(string: "https://attacker.example/callback?code=test-code&state=test-state"))
+        )
+
+        #expect(didAuthorize == false)
+        #expect(session.status == .authorizing)
+        #expect(session.latestError == nil)
+    }
+
+    @Test
     func completeAuthorizationCapturesUserIDFromTokenResponse() async throws {
         let configuration = liveOAuthConfiguration(clientID: "test-client-\(UUID().uuidString)")
         let session = MELIAuthenticationSession(
@@ -263,6 +277,28 @@ struct MELIAuthenticationSessionTests {
 
         let didAuthorize = await session.completeAuthorization(
             from: "https://jdocampom.com/meli/callback?code=test-code&state=\(state)"
+        )
+
+        #expect(didAuthorize)
+        #expect(session.currentUserID == 987654)
+        #expect(session.status == .authenticated)
+
+        session.signOut()
+    }
+
+    @Test
+    func completeAuthorizationIfPossibleAcceptsRegisteredHTTPSCallback() async throws {
+        let configuration = liveOAuthConfiguration(clientID: "test-client-\(UUID().uuidString)")
+        let session = MELIAuthenticationSession(
+            configuration: configuration,
+            urlSession: makeStubURLSession()
+        )
+        let authorizationURL = try session.authorizationURL()
+        let components = try #require(URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false))
+        let state = try #require(components.queryItems?.first(where: { $0.name == "state" })?.value)
+
+        let didAuthorize = await session.completeAuthorizationIfPossible(
+            from: try #require(URL(string: "https://jdocampom.com/meli/callback?code=test-code&state=\(state)"))
         )
 
         #expect(didAuthorize)

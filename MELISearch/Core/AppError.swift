@@ -89,7 +89,7 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         case .missingOAuthConfiguration:
             return "Configure MELI_APP_ID, MELI_CLIENT_SECRET, and MELI_REDIRECT_URL, or switch back to demo mode."
         case .invalidAuthorizationCallback:
-            return "Open the authorization page again from the app, then paste the full callback URL returned by that same attempt."
+            return "Start Mercado Libre authorization again from the app so it can generate a fresh callback for this OAuth attempt."
         case .unauthorized, .forbidden:
             return "Refresh your credentials or switch the app back to demo mode."
         case .transport(.notConnectedToInternet):

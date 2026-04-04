@@ -80,7 +80,7 @@ struct AppErrorTests {
         #expect(error.errorDescription == "The callback URL could not be validated for this OAuth attempt.")
         #expect(
             error.recoverySuggestion
-                == "Open the authorization page again from the app, then paste the full callback URL returned by that same attempt."
+                == "Start Mercado Libre authorization again from the app so it can generate a fresh callback for this OAuth attempt."
         )
         #expect(
             error.developerDescription
