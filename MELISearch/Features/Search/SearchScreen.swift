@@ -142,10 +142,16 @@ private extension SearchScreen {
             }
             .buttonStyle(.borderedProminent)
             .tint(Color.accentColor)
+            .disabled(isSearchButtonDisabled)
             .accessibilityIdentifier("searchButton")
         }
         .padding(18)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    /// Prevents empty or whitespace-only searches from being submitted from the button.
+    var isSearchButtonDisabled: Bool {
+        viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// Chooses whether the search bar is pinned to the top or bottom based on platform conventions.
