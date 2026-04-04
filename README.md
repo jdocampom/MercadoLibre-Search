@@ -240,8 +240,3 @@ sequenceDiagram
     Repository-->>SearchViewModel: [ProductSummary]
     SearchViewModel-->>SearchScreen: loaded state
 ```
-
-## Documentation
-
-- The app source now includes SwiftDoc comments for the main types, properties, and behaviors across `App`, `Core`, `Domain`, `Data`, and feature modules.
-- AI-assisted implementation notes live in [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
