@@ -10,10 +10,8 @@ enum MELIEndpoint {
     /// Indicates whether the endpoint should be called without a bearer token by default.
     var prefersAnonymousAccess: Bool {
         switch self {
-        case .search:
-            return true
-        case .itemDetail:
-            return true
+        case .search, .itemDetail:
+            return false
         }
     }
 
@@ -21,7 +19,7 @@ enum MELIEndpoint {
     var allowsAnonymousAccess: Bool {
         switch self {
         case .search, .itemDetail:
-            return true
+            return false
         }
     }
 

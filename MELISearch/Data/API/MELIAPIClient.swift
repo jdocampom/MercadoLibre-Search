@@ -57,10 +57,10 @@ final class MELIAPIClient {
     /// - Returns: A decoded payload of the expected type.
     private func request<T: Decodable>(endpoint: MELIEndpoint) async throws -> T {
         if endpoint.prefersAnonymousAccess {
-            return try await performRequest(endpoint: endpoint, accessToken: nil)
+            return try await performAnonymousRequest(endpoint: endpoint)
         }
 
-        let preferredAccessToken: String?
+        let preferredAccessToken: String
 
         do {
             preferredAccessToken = try await accessTokenProvider()
@@ -70,16 +70,41 @@ final class MELIAPIClient {
                 AppLogger.networking.info(
                     "No bearer token available for public Mercado Libre endpoint. Retrying anonymously."
                 )
-                return try await performRequest(endpoint: endpoint, accessToken: nil)
+                return try await performAnonymousRequest(endpoint: endpoint)
             }
 
             throw appError
         }
 
-        return try await performRequest(
+        return try await performAuthorizedRequest(
             endpoint: endpoint,
             accessToken: preferredAccessToken,
             allowsAnonymousRetry: endpoint.allowsAnonymousAccess
+        )
+    }
+
+    /// Executes a request without attaching an Authorization header.
+    /// - Parameter endpoint: API endpoint to request.
+    /// - Returns: A decoded payload of the expected type.
+    private func performAnonymousRequest<T: Decodable>(endpoint: MELIEndpoint) async throws -> T {
+        try await performRequest(endpoint: endpoint, accessToken: nil)
+    }
+
+    /// Executes a request with a guaranteed bearer token.
+    /// - Parameters:
+    ///   - endpoint: API endpoint to request.
+    ///   - accessToken: Non-empty bearer token to attach to the request.
+    ///   - allowsAnonymousRetry: Indicates whether a 403 should trigger one anonymous retry.
+    /// - Returns: A decoded payload of the expected type.
+    private func performAuthorizedRequest<T: Decodable>(
+        endpoint: MELIEndpoint,
+        accessToken: String,
+        allowsAnonymousRetry: Bool = false
+    ) async throws -> T {
+        try await performRequest(
+            endpoint: endpoint,
+            accessToken: accessToken,
+            allowsAnonymousRetry: allowsAnonymousRetry
         )
     }
 

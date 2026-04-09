@@ -59,6 +59,37 @@ struct AppConfigurationTests {
     }
 
     @Test
+    func persistedOAuthConfigurationEnablesLiveWithoutEnvironmentVariables() {
+        let configuration = AppConfiguration.resolve(
+            environment: [:],
+            persistedOAuthConfiguration: makePersistedOAuthConfiguration()
+        )
+
+        #expect(configuration.dataSource == .live)
+        #expect(configuration.siteID == "MCO")
+        #expect(configuration.oauthConfiguration?.clientID == "123456")
+        #expect(configuration.oauthConfiguration?.clientSecret == "secret")
+        #expect(configuration.oauthConfiguration?.redirectURL.absoluteString == "https://example.com/callback")
+        #expect(configuration.oauthConfiguration?.authorizationHost == "auth.mercadolibre.com.co")
+    }
+
+    @Test
+    func environmentOAuthValuesOverridePersistedOAuthConfiguration() {
+        let configuration = AppConfiguration.resolve(
+            environment: [
+                "MELI_CLIENT_SECRET": "new-secret",
+                "MELI_REDIRECT_URL": "https://example.com/new-callback"
+            ],
+            persistedOAuthConfiguration: makePersistedOAuthConfiguration()
+        )
+
+        #expect(configuration.dataSource == .live)
+        #expect(configuration.oauthConfiguration?.clientID == "123456")
+        #expect(configuration.oauthConfiguration?.clientSecret == "new-secret")
+        #expect(configuration.oauthConfiguration?.redirectURL.absoluteString == "https://example.com/new-callback")
+    }
+
+    @Test
     func overridingDataSourceKeepsOAuthAndSiteSettings() {
         let originalConfiguration = AppConfiguration.resolve(environment: [
             "MELI_DATA_SOURCE": "live",
@@ -147,6 +178,16 @@ struct AppConfigurationTests {
 
         #expect(configuration.assistantNote.contains("OAuth is not fully configured yet"))
         #expect(configuration.assistantNote.contains("MCO"))
+    }
+
+    private func makePersistedOAuthConfiguration() -> AppConfiguration.PersistedOAuthConfiguration {
+        AppConfiguration.PersistedOAuthConfiguration(
+            siteID: "MCO",
+            oauthClientID: "123456",
+            oauthClientSecret: "secret",
+            oauthRedirectURL: URL(string: "https://example.com/callback")!,
+            oauthAuthorizationHost: "auth.mercadolibre.com.co"
+        )
     }
 }
 

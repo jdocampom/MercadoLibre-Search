@@ -1,7 +1,22 @@
 import Foundation
+import OSLog
 
 /// Runtime configuration assembled from process environment variables.
 struct AppConfiguration: Equatable, Sendable {
+    /// Persisted OAuth values reused when the app relaunches without Xcode environment variables.
+    struct PersistedOAuthConfiguration: Codable, Equatable, Sendable {
+        /// Mercado Libre site identifier used to derive the correct auth host.
+        let siteID: String
+        /// OAuth app identifier registered in Mercado Libre.
+        let oauthClientID: String
+        /// OAuth client secret required by the current token exchange implementation.
+        let oauthClientSecret: String
+        /// Redirect URL registered for the OAuth app.
+        let oauthRedirectURL: URL
+        /// Authorization host used to open the grant page.
+        let oauthAuthorizationHost: String
+    }
+
     /// Selects whether the app talks to the live API or uses local fixtures.
     enum DataSource: String, Sendable {
         /// Uses local in-memory fixtures and avoids live network requests.
@@ -33,20 +48,48 @@ struct AppConfiguration: Equatable, Sendable {
     /// Optional UI-test-only authentication override.
     let uiTestAuthenticationState: UITestAuthenticationState?
 
-    /// Default configuration loaded from scheme or process environment variables.
-    static let current = resolve(environment: ProcessInfo.processInfo.environment)
+    /// Default configuration loaded from scheme/process environment variables and a persisted local OAuth fallback.
+    static let current = resolveCurrent()
 
     /// Resolves the active configuration from a raw environment dictionary.
     /// - Parameter environment: Process environment values used to configure the app session.
     /// - Returns: A normalized configuration used by the composition root and shared services.
     static func resolve(environment: [String: String]) -> AppConfiguration {
+        resolve(environment: environment, persistedOAuthConfiguration: nil)
+    }
+
+    /// Resolves the active configuration from the raw environment plus a persisted OAuth fallback.
+    /// - Parameters:
+    ///   - environment: Process environment values used to configure the app session.
+    ///   - persistedOAuthConfiguration: Stored local OAuth configuration reused when the process environment is empty.
+    /// - Returns: A normalized configuration used by the composition root and shared services.
+    static func resolve(
+        environment: [String: String],
+        persistedOAuthConfiguration: PersistedOAuthConfiguration?
+    ) -> AppConfiguration {
         let accessToken = environment["MELI_ACCESS_TOKEN"]?.trimmedNonEmptyValue
-        let siteID = environment["MELI_SITE_ID"]?.trimmedNonEmptyValue ?? "MCO"
+        let environmentSiteID = environment["MELI_SITE_ID"]?.trimmedNonEmptyValue
+        let siteID = environmentSiteID ?? persistedOAuthConfiguration?.siteID ?? "MCO"
         let requestedSource = environment["MELI_DATA_SOURCE"]
             .map { $0.lowercased() }
             .flatMap(DataSource.init(rawValue:))
-        let oauthAuthorizationHost = environment["MELI_AUTH_HOST"]?.trimmedNonEmptyValue
-            ?? MELIOAuthConfiguration.defaultAuthorizationHost(forSiteID: siteID)
+        let oauthAuthorizationHost = resolveOAuthAuthorizationHost(
+            environment: environment,
+            siteID: siteID,
+            persistedOAuthConfiguration: persistedOAuthConfiguration
+        )
+        let oauthClientID = environment["MELI_APP_ID"]?.trimmedNonEmptyValue
+            ?? persistedOAuthConfiguration?.oauthClientID
+        let oauthClientSecret = environment["MELI_CLIENT_SECRET"]?.trimmedNonEmptyValue
+            ?? persistedOAuthConfiguration?.oauthClientSecret
+        let oauthRedirectURL = environment["MELI_REDIRECT_URL"]?.trimmedNonEmptyValue
+            .flatMap(URL.init(string:))
+            ?? persistedOAuthConfiguration?.oauthRedirectURL
+        let hasInteractiveOAuth =
+            oauthClientID != nil
+                && oauthClientSecret != nil
+                && oauthRedirectURL != nil
+                && oauthAuthorizationHost != nil
         let dataSource: DataSource
 
         switch requestedSource {
@@ -55,16 +98,16 @@ struct AppConfiguration: Equatable, Sendable {
         case .live?:
             dataSource = .live
         case nil:
-            dataSource = accessToken == nil ? .demo : .live
+            dataSource = accessToken != nil || hasInteractiveOAuth ? .live : .demo
         }
 
         return AppConfiguration(
             dataSource: dataSource,
             siteID: siteID,
             accessToken: accessToken,
-            oauthClientID: environment["MELI_APP_ID"]?.trimmedNonEmptyValue,
-            oauthClientSecret: environment["MELI_CLIENT_SECRET"]?.trimmedNonEmptyValue,
-            oauthRedirectURL: environment["MELI_REDIRECT_URL"]?.trimmedNonEmptyValue.flatMap(URL.init(string:)),
+            oauthClientID: oauthClientID,
+            oauthClientSecret: oauthClientSecret,
+            oauthRedirectURL: oauthRedirectURL,
             oauthAuthorizationHost: oauthAuthorizationHost,
             uiTestAuthenticationState: environment["MELI_UI_TEST_AUTH_STATE"]
                 .flatMap(UITestAuthenticationState.init(rawValue:))
@@ -146,11 +189,132 @@ struct AppConfiguration: Equatable, Sendable {
     }
 }
 
+private extension AppConfiguration {
+    /// Loads the process configuration while reusing the last complete local OAuth setup when possible.
+    static func resolveCurrent(environment: [String: String] = ProcessInfo.processInfo.environment) -> AppConfiguration {
+        let store = PersistedOAuthConfigurationStore()
+        let persistedOAuthConfiguration = store.synchronizeAndLoad(environment: environment)
+        return resolve(
+            environment: environment,
+            persistedOAuthConfiguration: persistedOAuthConfiguration
+        )
+    }
+
+    /// Resolves the preferred OAuth host without mixing a new site identifier with an old persisted host.
+    static func resolveOAuthAuthorizationHost(
+        environment: [String: String],
+        siteID: String,
+        persistedOAuthConfiguration: PersistedOAuthConfiguration?
+    ) -> String? {
+        if let explicitEnvironmentHost = environment["MELI_AUTH_HOST"]?.trimmedNonEmptyValue {
+            return explicitEnvironmentHost
+        }
+
+        if environment["MELI_SITE_ID"]?.trimmedNonEmptyValue != nil {
+            return MELIOAuthConfiguration.defaultAuthorizationHost(forSiteID: siteID)
+        }
+
+        return persistedOAuthConfiguration?.oauthAuthorizationHost
+            ?? MELIOAuthConfiguration.defaultAuthorizationHost(forSiteID: siteID)
+    }
+}
+
 private extension String {
     /// Returns a trimmed string only when it still contains visible characters.
     /// - Returns: A non-empty trimmed string, or `nil` when the receiver is blank.
     var trimmedNonEmptyValue: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+/// Persists a complete OAuth setup so the app can relaunch outside Xcode and still reauthorize later.
+private struct PersistedOAuthConfigurationStore {
+    /// Dedicated keychain location for the local developer OAuth configuration.
+    private let keychainStore = KeychainStore(
+        service: "com.jdocampo.MeLi-Lite.mercadolibre.oauth-configuration",
+        account: "default"
+    )
+
+    /// Merges environment values over the last stored configuration and saves the result when it changed.
+    /// - Parameter environment: Process environment values used for the current launch.
+    /// - Returns: The best complete persisted OAuth configuration available for this launch.
+    func synchronizeAndLoad(environment: [String: String]) -> AppConfiguration.PersistedOAuthConfiguration? {
+        do {
+            let existingConfiguration = try load()
+            let mergedConfiguration = mergedConfiguration(
+                environment: environment,
+                existingConfiguration: existingConfiguration
+            )
+
+            if let mergedConfiguration, mergedConfiguration != existingConfiguration {
+                try save(mergedConfiguration)
+            }
+
+            return mergedConfiguration
+        } catch {
+            AppLogger.authentication.error(
+                "Persisted OAuth configuration sync failed: \(error.localizedDescription, privacy: .public)"
+            )
+            return nil
+        }
+    }
+
+    /// Loads the last saved OAuth configuration when present.
+    func load() throws -> AppConfiguration.PersistedOAuthConfiguration? {
+        guard let data = try keychainStore.load() else {
+            return nil
+        }
+
+        return try JSONDecoder().decode(AppConfiguration.PersistedOAuthConfiguration.self, from: data)
+    }
+
+    /// Saves a new OAuth configuration snapshot to Keychain.
+    func save(_ configuration: AppConfiguration.PersistedOAuthConfiguration) throws {
+        let data = try JSONEncoder().encode(configuration)
+        try keychainStore.save(data)
+    }
+
+    /// Combines environment overrides with the last saved configuration and returns a complete result only when possible.
+    func mergedConfiguration(
+        environment: [String: String],
+        existingConfiguration: AppConfiguration.PersistedOAuthConfiguration?
+    ) -> AppConfiguration.PersistedOAuthConfiguration? {
+        let environmentSiteID = environment["MELI_SITE_ID"]?.trimmedNonEmptyValue
+        let siteID = environmentSiteID ?? existingConfiguration?.siteID
+        let oauthClientID = environment["MELI_APP_ID"]?.trimmedNonEmptyValue
+            ?? existingConfiguration?.oauthClientID
+        let oauthClientSecret = environment["MELI_CLIENT_SECRET"]?.trimmedNonEmptyValue
+            ?? existingConfiguration?.oauthClientSecret
+        let oauthRedirectURL = environment["MELI_REDIRECT_URL"]?.trimmedNonEmptyValue
+            .flatMap(URL.init(string:))
+            ?? existingConfiguration?.oauthRedirectURL
+        let oauthAuthorizationHost =
+            if let explicitEnvironmentHost = environment["MELI_AUTH_HOST"]?.trimmedNonEmptyValue {
+                explicitEnvironmentHost
+            } else if let environmentSiteID {
+                MELIOAuthConfiguration.defaultAuthorizationHost(forSiteID: environmentSiteID)
+            } else {
+                existingConfiguration?.oauthAuthorizationHost
+                    ?? siteID.flatMap(MELIOAuthConfiguration.defaultAuthorizationHost(forSiteID:))
+            }
+
+        guard
+            let siteID,
+            let oauthClientID,
+            let oauthClientSecret,
+            let oauthRedirectURL,
+            let oauthAuthorizationHost
+        else {
+            return existingConfiguration
+        }
+
+        return AppConfiguration.PersistedOAuthConfiguration(
+            siteID: siteID,
+            oauthClientID: oauthClientID,
+            oauthClientSecret: oauthClientSecret,
+            oauthRedirectURL: oauthRedirectURL,
+            oauthAuthorizationHost: oauthAuthorizationHost
+        )
     }
 }
