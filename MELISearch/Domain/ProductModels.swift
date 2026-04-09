@@ -1,7 +1,7 @@
 import Foundation
 
 /// Lightweight product representation used by search results and navigation.
-struct ProductSummary: Identifiable, Hashable, Sendable {
+struct ProductSummary: Identifiable, Hashable, Codable, Sendable {
     /// Mercado Libre item identifier.
     let id: String
     /// Primary product name displayed in lists and titles.
@@ -61,7 +61,7 @@ struct ProductDetail: Identifiable, Hashable, Sendable {
 }
 
 /// Key-value attribute displayed in chips and fact grids.
-struct ProductAttribute: Identifiable, Hashable, Sendable {
+struct ProductAttribute: Identifiable, Hashable, Codable, Sendable {
     /// Stable backend identifier for the attribute.
     let id: String
     /// Localized attribute label.
@@ -71,7 +71,7 @@ struct ProductAttribute: Identifiable, Hashable, Sendable {
 }
 
 /// Shipping capabilities associated with a product listing.
-struct ShippingInfo: Hashable, Sendable {
+struct ShippingInfo: Hashable, Codable, Sendable {
     /// Indicates whether the listing offers free delivery.
     let isFreeShipping: Bool
     /// Indicates whether the seller supports in-store pickup.

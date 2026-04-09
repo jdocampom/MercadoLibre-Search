@@ -7,47 +7,49 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "B31289AE-BEC1-4055-AEF8-321D739078AA"
+            uuid = "100FCDC9-8E2A-4647-A8C2-B41D3EB37DE8"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "MELISearch/Data/API/MELIEndpoint.swift"
+            filePath = "MELISearch/Data/API/MELIAPIClient.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "52"
-            endingLineNumber = "52"
-            landmarkName = "makeRequest(accessToken:)"
+            startingLineNumber = "162"
+            endingLineNumber = "162"
+            landmarkName = "performRequest(endpoint:accessToken:allowsAnonymousRetry:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "B31289AE-BEC1-4055-AEF8-321D739078AA - 86044a02845410a4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "MELISearch.MELIEndpoint.makeRequest(accessToken: Swift.Optional&lt;Swift.String&gt;) throws -&gt; Foundation.URLRequest"
-                  moduleName = "MELISearch.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/juandiegoocampo/Downloads/MELISearch/MELISearch/Data/API/MELIEndpoint.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "52"
-                  endingLineNumber = "52">
-               </Location>
-               <Location
-                  uuid = "B31289AE-BEC1-4055-AEF8-321D739078AA - 86044a02845410a4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "MELISearch.MELIEndpoint.makeRequest(accessToken: Swift.Optional&lt;Swift.String&gt;) throws -&gt; Foundation.URLRequest"
-                  moduleName = "MELISearch.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/juandiegoocampo/Downloads/MELISearch/MELISearch/Data/API/MELIEndpoint.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "52"
-                  endingLineNumber = "52">
-               </Location>
-            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "B9559EBA-77CD-4678-9BCD-0091A18CE0B1"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "MELISearch/Data/API/MELIAPIClient.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "51"
+            endingLineNumber = "51"
+            landmarkName = "fetchProductDetail(id:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "92B78C54-2D0B-4459-97AA-69FA2CFF41F0"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "MELISearch/Data/API/MELIAPIClient.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "56"
+            endingLineNumber = "56"
+            landmarkName = "fetchProductDetail(id:)"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

@@ -2,6 +2,12 @@ import SwiftUI
 
 /// The root navigation host that injects shared dependencies into the search and detail flows.
 struct ContentView: View {
+    /// Root tabs available from the app's main surface.
+    private enum RootTab {
+        case search
+        case favorites
+    }
+
     /// The startup configuration used as the basis for runtime demo/live overrides.
     private let baseConfiguration: AppConfiguration
 
@@ -13,8 +19,12 @@ struct ContentView: View {
     @State private var viewModel: SearchViewModel
     /// The  connectivity monitor shared with the search screen.
     @State private var connectivityMonitor: ConnectivityMonitor
+    /// Favorites persisted across app launches and shared by all tabs.
+    @State private var favoritesStore: FavoritesStore
     /// Resets the navigation tree when switching between demo and live.
     @State private var navigationIdentity = UUID()
+    /// Keeps the currently selected root tab stable across refreshes.
+    @State private var selectedTab = RootTab.search
 
     /// Builds the root screen graph with dependencies sourced from the app container.
     /// - Parameters:
@@ -30,26 +40,24 @@ struct ContentView: View {
             )
         )
         _connectivityMonitor = State(initialValue: container.connectivityMonitor)
+        _favoritesStore = State(initialValue: container.favoritesStore)
     }
 
     /// Renders the root navigation stack and coordinates OAuth callback completion from incoming URLs.
     var body: some View {
-        NavigationStack {
-            SearchScreen(
-                viewModel: viewModel,
-                connectivityMonitor: connectivityMonitor,
-                authenticationSession: authenticationSession,
-                onSelectDataSource: switchDataSource(to:)
-            )
-            .navigationDestination(for: ProductSummary.self) { product in
-                ProductDetailScreen(
-                    product: product,
-                    repository: activeContainer.productRepository,
-                    configuration: activeContainer.configuration
-                )
-            }
+        TabView(selection: $selectedTab) {
+            searchTab
+                .tabItem {
+                    Label("Search", systemImage: "magnifyingglass")
+                }
+                .tag(RootTab.search)
+
+            favoritesTab
+                .tabItem {
+                    Label("Favorites", systemImage: favoritesStore.favorites.isEmpty ? "heart" : "heart.fill")
+                }
+                .tag(RootTab.favorites)
         }
-        .id(navigationIdentity)
         .task {
             await authenticationSession.prepareIfNeeded()
         }
@@ -62,6 +70,41 @@ struct ContentView: View {
 }
 
 private extension ContentView {
+    /// Search root hosted inside its own navigation stack.
+    var searchTab: some View {
+        NavigationStack {
+            SearchScreen(
+                viewModel: viewModel,
+                connectivityMonitor: connectivityMonitor,
+                authenticationSession: authenticationSession,
+                onSelectDataSource: switchDataSource(to:)
+            )
+            .navigationDestination(for: ProductSummary.self, destination: detailScreen)
+        }
+        .id(navigationIdentity)
+    }
+
+    /// Favorites root hosted inside its own navigation stack.
+    var favoritesTab: some View {
+        NavigationStack {
+            FavoritesScreen(favoritesStore: favoritesStore)
+                .navigationDestination(for: ProductSummary.self, destination: detailScreen)
+        }
+        .id(navigationIdentity)
+    }
+
+    /// Shared detail destination used from both search results and favorites.
+    /// - Parameter product: Product selected from either root tab.
+    /// - Returns: Product detail screen backed by the active repository and favorites store.
+    func detailScreen(for product: ProductSummary) -> some View {
+        ProductDetailScreen(
+            product: product,
+            repository: activeContainer.productRepository,
+            configuration: activeContainer.configuration,
+            favoritesStore: favoritesStore
+        )
+    }
+
     /// Rebuilds the app container for the selected data source and resets UI state that depends on it.
     /// - Parameter dataSource: Runtime backend mode that should become active.
     func switchDataSource(to dataSource: AppConfiguration.DataSource) {
@@ -70,7 +113,10 @@ private extension ContentView {
         }
 
         let updatedConfiguration = baseConfiguration.overriding(dataSource: dataSource)
-        let updatedContainer = AppContainer.main(configuration: updatedConfiguration)
+        let updatedContainer = AppContainer.main(
+            configuration: updatedConfiguration,
+            favoritesStore: favoritesStore
+        )
 
         activeContainer = updatedContainer
         authenticationSession = updatedContainer.authenticationSession

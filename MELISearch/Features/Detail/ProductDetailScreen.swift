@@ -6,6 +6,8 @@ struct ProductDetailScreen: View {
     @State private var selectedImageIndex = 0
     /// View model that resolves the secondary detail request and derived presentation data.
     @State private var viewModel: ProductDetailViewModel
+    /// Favorites selected by the user across app launches.
+    let favoritesStore: FavoritesStore
 
     /// Two-column layout used for facts and attributes.
     private let factColumns = [GridItem(.flexible()), GridItem(.flexible())]
@@ -15,11 +17,14 @@ struct ProductDetailScreen: View {
     ///   - product: Summary payload selected from the search results.
     ///   - repository: Repository used to fetch full product details.
     ///   - configuration: Runtime settings for the current app session.
+    ///   - favoritesStore: Persisted favorites shared by the app.
     init(
         product: ProductSummary,
         repository: ProductRepository,
-        configuration: AppConfiguration
+        configuration: AppConfiguration,
+        favoritesStore: FavoritesStore
     ) {
+        self.favoritesStore = favoritesStore
         _viewModel = State(
             initialValue: ProductDetailViewModel(
                 product: product,
@@ -69,10 +74,31 @@ struct ProductDetailScreen: View {
         .task {
             await viewModel.loadIfNeeded()
         }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                favoriteButton
+            }
+        }
     }
 }
 
 private extension ProductDetailScreen {
+    /// Indicates whether the current product is already saved.
+    var isFavorite: Bool {
+        favoritesStore.contains(viewModel.product)
+    }
+
+    /// Toolbar action used to add or remove the current product from favorites.
+    var favoriteButton: some View {
+        Button(action: toggleFavorite) {
+            Label(
+                isFavorite ? "Remove Favorite" : "Save Favorite",
+                systemImage: isFavorite ? "heart.fill" : "heart"
+            )
+        }
+        .accessibilityIdentifier("favoriteToggleButton")
+    }
+
     /// Resolves the gallery section using the best image source available for the current product.
     var gallerySection: some View {
         Group {
@@ -303,6 +329,11 @@ private extension ProductDetailScreen {
     var sectionBackground: some View {
         RoundedRectangle(cornerRadius: 24, style: .continuous)
             .fill(Color.white.opacity(0.86))
+    }
+
+    /// Toggles the favorite state using the summary payload shown by the current detail flow.
+    func toggleFavorite() {
+        favoritesStore.toggle(viewModel.product)
     }
 }
 
