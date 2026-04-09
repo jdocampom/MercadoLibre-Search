@@ -78,6 +78,8 @@ import OSLog
     /// The Mercado Libre user ID currently associated with the active authentication
     /// session, if available.
     private(set) var currentUserID: Int?
+    /// The Mercado Libre site currently associated with the active authentication session, if available.
+    private(set) var currentSiteID: String?
 
     /// The most recent error encountered during an OAuth operation or authentication flow.
     private(set) var latestError: AppError?
@@ -113,6 +115,7 @@ import OSLog
         } else if configuration.uiTestAuthenticationState == .authenticated {
             status = .authenticated
             currentUserID = 999_999
+            currentSiteID = configuration.siteID
         } else if configuration.accessToken != nil {
             status = .usingEnvironmentAccessToken
         } else if oauthConfiguration == nil {
@@ -283,6 +286,7 @@ import OSLog
         do {
             persistedCredentials = try loadPersistedCredentials()
             currentUserID = persistedCredentials?.userID
+            currentSiteID = nil
         } catch {
             let appError = AppError.from(error)
             latestError = appError
@@ -429,6 +433,7 @@ import OSLog
         pendingAuthorization = nil
         persistedCredentials = nil
         currentUserID = nil
+        currentSiteID = nil
         latestError = nil
         sessionValidation = .idle
 
@@ -496,6 +501,26 @@ import OSLog
         throw configuration.accessToken == nil ? AppError.missingAccessToken : AppError.invalidUserAccessToken
     }
 
+    /// Resolves the best site identifier for authenticated search requests.
+    /// - Returns: The validated user site when available, otherwise the configured fallback site.
+    func resolvedSearchSiteID() async -> String {
+        await prepareIfNeeded()
+
+        if let currentSiteID, !currentSiteID.isEmpty {
+            return currentSiteID
+        }
+
+        guard canValidateCurrentSession else {
+            return configuration.siteID
+        }
+
+        if case .idle = sessionValidation {
+            _ = await validateCurrentSession()
+        }
+
+        return currentSiteID?.isEmpty == false ? currentSiteID! : configuration.siteID
+    }
+
     /// Confirms the current bearer token by calling Mercado Libre's `/users/me` endpoint.
     /// - Returns: `true` when Mercado Libre accepts the current bearer token and returns a user payload.
     @discardableResult
@@ -533,9 +558,10 @@ import OSLog
             let user = try decoder.decode(ValidatedUser.self, from: data)
 
             currentUserID = user.id
+            currentSiteID = user.siteID
             sessionValidation = .validated(user)
             AppLogger.authentication.info(
-                "Validated Mercado Libre session for user \(String(user.id), privacy: .public)"
+                "Validated Mercado Libre session for user \(String(user.id), privacy: .public) on site \(user.siteID ?? "<unknown>", privacy: .public)"
             )
             return true
         } catch {
@@ -857,6 +883,7 @@ private extension MELIAuthenticationSession {
         case .authenticated:
             status = .authenticated
             currentUserID = 999_999
+            currentSiteID = configuration.siteID
         }
 
         return true
@@ -895,6 +922,7 @@ private extension MELIAuthenticationSession {
         }
 
         currentUserID = nil
+        currentSiteID = nil
         latestError = nil
         sessionValidation = .idle
         status = .usingEnvironmentAccessToken

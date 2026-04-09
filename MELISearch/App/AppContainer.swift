@@ -21,7 +21,8 @@ struct AppContainer {
             ? DemoProductRepository.makeRepository()
             : LiveProductRepository.makeRepository(
                 configuration: configuration,
-                accessTokenProvider: authenticationSession.validAccessToken
+                accessTokenProvider: authenticationSession.validAccessToken,
+                searchSiteIDProvider: authenticationSession.resolvedSearchSiteID
             )
 
         return AppContainer(

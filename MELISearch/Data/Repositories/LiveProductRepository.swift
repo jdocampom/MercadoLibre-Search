@@ -6,14 +6,17 @@ enum LiveProductRepository {
     /// - Parameters:
     ///   - configuration: Runtime settings used to configure the API client.
     ///   - accessTokenProvider: Async provider used to obtain a valid bearer token for each request.
+    ///   - searchSiteIDProvider: Async provider used to resolve the best site for live searches.
     /// - Returns: A repository backed by live Mercado Libre requests.
     static func makeRepository(
         configuration: AppConfiguration,
-        accessTokenProvider: @escaping @MainActor () async throws -> String
+        accessTokenProvider: @escaping @MainActor () async throws -> String,
+        searchSiteIDProvider: @escaping @MainActor () async -> String
     ) -> ProductRepository {
         let client = MELIAPIClient(
             configuration: configuration,
-            accessTokenProvider: accessTokenProvider
+            accessTokenProvider: accessTokenProvider,
+            searchSiteIDProvider: searchSiteIDProvider
         )
 
         return ProductRepository(

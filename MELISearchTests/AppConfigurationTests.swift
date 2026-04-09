@@ -416,8 +416,28 @@ struct MELIAuthenticationSessionTests {
 
         #expect(didValidate)
         #expect(session.currentUserID == 24680)
+        #expect(session.currentSiteID == "MCO")
         #expect(session.sessionValidationTitle == "Session Confirmed")
         #expect(session.sessionValidationMessage.contains("24680"))
+    }
+
+    @Test
+    func resolvedSearchSiteIDUsesValidatedUserSite() async {
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_SITE_ID": "MLA",
+            "MELI_ACCESS_TOKEN": "APP_USR-env-token"
+        ])
+        let session = MELIAuthenticationSession(
+            configuration: configuration,
+            urlSession: makeStubURLSession()
+        )
+
+        let resolvedSiteID = await session.resolvedSearchSiteID()
+
+        #expect(resolvedSiteID == "MCO")
+        #expect(session.currentSiteID == "MCO")
+        #expect(session.sessionValidationTitle == "Session Confirmed")
     }
 
     @Test

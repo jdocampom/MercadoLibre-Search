@@ -17,6 +17,7 @@ struct MELIAPIClientTests {
         let client = MELIAPIClient(
             configuration: configuration,
             accessTokenProvider: { "APP_USR-env-token" },
+            searchSiteIDProvider: { "MCO" },
             urlSession: makeStubURLSession()
         )
 
@@ -41,6 +42,7 @@ struct MELIAPIClientTests {
         let client = MELIAPIClient(
             configuration: configuration,
             accessTokenProvider: { "APP-application-token" },
+            searchSiteIDProvider: { "MCO" },
             urlSession: makeStubURLSession()
         )
 
@@ -51,6 +53,31 @@ struct MELIAPIClientTests {
             #expect(AppError.from(error) == .invalidUserAccessToken)
             #expect(PublicCatalogFallbackRequestRecorder.snapshot().isEmpty)
         }
+    }
+
+    @Test
+    func searchUsesResolvedSiteIDFromProvider() async throws {
+        PublicCatalogFallbackRequestRecorder.reset()
+
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_SITE_ID": "MCO",
+            "MELI_ACCESS_TOKEN": "APP_USR-env-token"
+        ])
+
+        let client = MELIAPIClient(
+            configuration: configuration,
+            accessTokenProvider: { "APP_USR-env-token" },
+            searchSiteIDProvider: { "MLA" },
+            urlSession: makeStubURLSession()
+        )
+
+        let results = try await client.searchProducts(matching: "iPhone")
+
+        #expect(results.count == 1)
+        #expect(results.first?.id == "MLA123")
+        #expect(results.first?.title == "iPhone de prueba en MLA")
+        #expect(PublicCatalogFallbackRequestRecorder.snapshot() == ["Bearer APP_USR-env-token"])
     }
 
     private func makeStubURLSession() -> URLSession {
@@ -119,6 +146,28 @@ private final class PublicCatalogFallbackURLProtocol: URLProtocol {
                   "shipping": {
                     "free_shipping": true,
                     "store_pickup": false
+                  }
+                }
+              ]
+            }
+            """.utf8)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        case "/sites/MLA/search":
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = Data("""
+            {
+              "results": [
+                {
+                  "id": "MLA123",
+                  "title": "iPhone de prueba en MLA",
+                  "price": 2000,
+                  "currency_id": "ARS",
+                  "thumbnail": "https://http2.mlstatic.com/D_456.jpg",
+                  "shipping": {
+                    "free_shipping": false,
+                    "store_pickup": true
                   }
                 }
               ]

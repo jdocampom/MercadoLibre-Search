@@ -7,6 +7,8 @@ final class MELIAPIClient {
     private let configuration: AppConfiguration
     /// Async provider that resolves a valid bearer token before each live request.
     private let accessTokenProvider: @MainActor () async throws -> String
+    /// Async provider that resolves the site scope for live searches.
+    private let searchSiteIDProvider: @MainActor () async -> String
     /// Session used to execute Mercado Libre API requests.
     private let urlSession: URLSession
     /// In-memory cache that avoids refetching detail screens during the same session.
@@ -16,13 +18,16 @@ final class MELIAPIClient {
     /// - Parameters:
     ///   - configuration: Runtime settings that provide site scope and credentials.
     ///   - accessTokenProvider: Async provider that returns a valid bearer token.
+    ///   - searchSiteIDProvider: Async provider that resolves the best site scope for searches.
     init(
         configuration: AppConfiguration,
         accessTokenProvider: @escaping @MainActor () async throws -> String,
+        searchSiteIDProvider: @escaping @MainActor () async -> String,
         urlSession: URLSession = .shared
     ) {
         self.configuration = configuration
         self.accessTokenProvider = accessTokenProvider
+        self.searchSiteIDProvider = searchSiteIDProvider
         self.urlSession = urlSession
     }
 
@@ -30,8 +35,9 @@ final class MELIAPIClient {
     /// - Parameter query: Search text to forward to Mercado Libre.
     /// - Returns: Product summaries returned by the search endpoint.
     func searchProducts(matching query: String) async throws -> [ProductSummary] {
+        let siteID = await searchSiteIDProvider()
         let payload: MercadoSearchResponseDTO = try await request(
-            endpoint: .search(query: query, siteID: configuration.siteID)
+            endpoint: .search(query: query, siteID: siteID)
         )
 
         return payload.results.map(\.summary)
