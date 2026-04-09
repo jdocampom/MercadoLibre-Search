@@ -36,8 +36,8 @@ final class MELIAPIClient {
     /// - Returns: Product summaries returned by the search endpoint.
     func searchProducts(matching query: String) async throws -> [ProductSummary] {
         let siteID = await searchSiteIDProvider()
-        let payload: MercadoSearchResponseDTO = try await request(
-            endpoint: .search(query: query, siteID: siteID)
+        let payload: MercadoProductSearchResponseDTO = try await request(
+            endpoint: .productSearch(query: query, siteID: siteID)
         )
 
         return payload.results.map(\.summary)
@@ -51,7 +51,7 @@ final class MELIAPIClient {
             return cachedDetail
         }
 
-        let payload: MercadoItemDTO = try await request(endpoint: .itemDetail(id: id))
+        let payload: MercadoProductDTO = try await request(endpoint: .productDetail(id: id))
 
         let detail = payload.detail
         detailCache[id] = detail

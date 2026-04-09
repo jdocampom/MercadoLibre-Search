@@ -3,4 +3,52 @@
    uuid = "819DB303-3FB6-41B3-A238-BFED1B4F4262"
    type = "1"
    version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "B31289AE-BEC1-4055-AEF8-321D739078AA"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "MELISearch/Data/API/MELIEndpoint.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "52"
+            endingLineNumber = "52"
+            landmarkName = "makeRequest(accessToken:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "B31289AE-BEC1-4055-AEF8-321D739078AA - 86044a02845410a4"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "MELISearch.MELIEndpoint.makeRequest(accessToken: Swift.Optional&lt;Swift.String&gt;) throws -&gt; Foundation.URLRequest"
+                  moduleName = "MELISearch.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/juandiegoocampo/Downloads/MELISearch/MELISearch/Data/API/MELIEndpoint.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "52"
+                  endingLineNumber = "52">
+               </Location>
+               <Location
+                  uuid = "B31289AE-BEC1-4055-AEF8-321D739078AA - 86044a02845410a4"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "MELISearch.MELIEndpoint.makeRequest(accessToken: Swift.Optional&lt;Swift.String&gt;) throws -&gt; Foundation.URLRequest"
+                  moduleName = "MELISearch.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/juandiegoocampo/Downloads/MELISearch/MELISearch/Data/API/MELIEndpoint.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "52"
+                  endingLineNumber = "52">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
 </Bucket>

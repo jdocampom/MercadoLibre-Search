@@ -98,16 +98,19 @@ import OSLog
     /// - Parameters:
     ///   - configuration: Environment-derived settings that define demo/live behavior and OAuth inputs.
     ///   - urlSession: Session used to perform token exchange and refresh calls.
+    ///   - keychainStore: Secure storage used to persist Mercado Libre OAuth credentials.
     init(
         configuration: AppConfiguration,
-        urlSession: URLSession = .shared
+        urlSession: URLSession = .shared,
+        keychainStore: KeychainStore? = nil
     ) {
         self.configuration = configuration
         oauthConfiguration = configuration.oauthConfiguration
-        keychainStore = KeychainStore(
-            service: "com.jdocampo.MeLi-Lite.mercadolibre.oauth",
-            account: configuration.oauthClientID ?? "default"
-        )
+        self.keychainStore = keychainStore
+            ?? KeychainStore(
+                service: "com.jdocampo.MeLi-Lite.mercadolibre.oauth",
+                account: configuration.oauthClientID ?? "default"
+            )
         self.urlSession = urlSession
 
         if configuration.isUsingDemoData {

@@ -2,15 +2,15 @@ import Foundation
 
 /// Mercado Libre endpoints supported by the application.
 enum MELIEndpoint {
-    /// Search endpoint scoped to a specific Mercado Libre site.
-    case search(query: String, siteID: String)
-    /// Item detail endpoint for a selected listing identifier.
-    case itemDetail(id: String)
+    /// Product search endpoint scoped to a specific Mercado Libre site.
+    case productSearch(query: String, siteID: String)
+    /// Product detail endpoint for a selected catalog identifier.
+    case productDetail(id: String)
 
     /// Indicates whether the endpoint should be called without a bearer token by default.
     var prefersAnonymousAccess: Bool {
         switch self {
-        case .search, .itemDetail:
+        case .productSearch, .productDetail:
             return false
         }
     }
@@ -18,7 +18,7 @@ enum MELIEndpoint {
     /// Indicates whether the endpoint is part of Mercado Libre's public catalog surface.
     var allowsAnonymousAccess: Bool {
         switch self {
-        case .search, .itemDetail:
+        case .productSearch, .productDetail:
             return false
         }
     }
@@ -26,7 +26,7 @@ enum MELIEndpoint {
     /// Indicates whether the endpoint requires a user-scoped OAuth bearer token (`APP_USR-...`).
     var requiresUserAccessToken: Bool {
         switch self {
-        case .search, .itemDetail:
+        case .productSearch, .productDetail:
             return true
         }
     }
@@ -59,19 +59,23 @@ enum MELIEndpoint {
     /// Path component associated with the selected endpoint.
     private var path: String {
         switch self {
-        case let .search(_, siteID):
-            return "/sites/\(siteID)/search"
-        case let .itemDetail(id):
-            return "/items/\(id)"
+        case .productSearch:
+            return "/products/search"
+        case let .productDetail(id):
+            return "/products/\(id)"
         }
     }
 
     /// Query items required by the selected endpoint.
     private var queryItems: [URLQueryItem] {
         switch self {
-        case let .search(query, _):
-            return [URLQueryItem(name: "q", value: query)]
-        case .itemDetail:
+        case let .productSearch(query, siteID):
+            return [
+                URLQueryItem(name: "status", value: "active"),
+                URLQueryItem(name: "site_id", value: siteID),
+                URLQueryItem(name: "q", value: query)
+            ]
+        case .productDetail:
             return []
         }
     }

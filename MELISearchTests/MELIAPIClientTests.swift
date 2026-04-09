@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import MELISearch
 
-@Suite("MELI API Client")
+@Suite(.serialized)
 struct MELIAPIClientTests {
     @Test
     func searchUsesBearerTokenForSearchEndpoint() async throws {
@@ -24,8 +24,10 @@ struct MELIAPIClientTests {
         let results = try await client.searchProducts(matching: "iPhone")
 
         #expect(results.count == 1)
-        #expect(results.first?.id == "MCO123")
+        #expect(results.first?.id == "MCO-PRODUCT-123")
         #expect(results.first?.title == "iPhone de prueba")
+        #expect(results.first?.price == 1_000)
+        #expect(results.first?.currencyCode == "COP")
         #expect(PublicCatalogFallbackRequestRecorder.snapshot() == ["Bearer APP_USR-env-token"])
     }
 
@@ -75,8 +77,36 @@ struct MELIAPIClientTests {
         let results = try await client.searchProducts(matching: "iPhone")
 
         #expect(results.count == 1)
-        #expect(results.first?.id == "MLA123")
+        #expect(results.first?.id == "MLA-PRODUCT-123")
         #expect(results.first?.title == "iPhone de prueba en MLA")
+        #expect(PublicCatalogFallbackRequestRecorder.snapshot() == ["Bearer APP_USR-env-token"])
+    }
+
+    @Test
+    func fetchProductDetailUsesCatalogProductEndpoint() async throws {
+        PublicCatalogFallbackRequestRecorder.reset()
+
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_SITE_ID": "MCO",
+            "MELI_ACCESS_TOKEN": "APP_USR-env-token"
+        ])
+
+        let client = MELIAPIClient(
+            configuration: configuration,
+            accessTokenProvider: { "APP_USR-env-token" },
+            searchSiteIDProvider: { "MCO" },
+            urlSession: makeStubURLSession()
+        )
+
+        let detail = try await client.fetchProductDetail(id: "MCO-PRODUCT-123")
+
+        #expect(detail.id == "MCO-PRODUCT-123")
+        #expect(detail.title == "iPhone de prueba")
+        #expect(detail.price == 1_200)
+        #expect(detail.currencyCode == "COP")
+        #expect(detail.shipping.isFreeShipping)
+        #expect(detail.imageURLs.count == 1)
         #expect(PublicCatalogFallbackRequestRecorder.snapshot() == ["Bearer APP_USR-env-token"])
     }
 
@@ -132,20 +162,32 @@ private final class PublicCatalogFallbackURLProtocol: URLProtocol {
         PublicCatalogFallbackRequestRecorder.append(request.value(forHTTPHeaderField: "Authorization"))
 
         switch url.path {
-        case "/sites/MCO/search":
+        case "/products/search" where url.query?.contains("site_id=MCO") == true:
             let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
             let data = Data("""
             {
               "results": [
                 {
-                  "id": "MCO123",
-                  "title": "iPhone de prueba",
-                  "price": 1000,
-                  "currency_id": "COP",
-                  "thumbnail": "https://http2.mlstatic.com/D_123.jpg",
-                  "shipping": {
-                    "free_shipping": true,
-                    "store_pickup": false
+                  "id": "MCO-PRODUCT-123",
+                  "name": "iPhone de prueba",
+                  "family_name": "iPhone",
+                  "attributes": [
+                    {
+                      "id": "BRAND",
+                      "name": "Marca",
+                      "value_name": "Apple"
+                    }
+                  ],
+                  "buy_box_winner": {
+                    "price": 1000,
+                    "currency_id": "COP",
+                    "sold_quantity": 7,
+                    "available_quantity": 2,
+                    "condition": "new",
+                    "shipping": {
+                      "free_shipping": true,
+                      "store_pickup": false
+                    }
                   }
                 }
               ]
@@ -154,23 +196,70 @@ private final class PublicCatalogFallbackURLProtocol: URLProtocol {
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: data)
             client?.urlProtocolDidFinishLoading(self)
-        case "/sites/MLA/search":
+        case "/products/search" where url.query?.contains("site_id=MLA") == true:
             let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
             let data = Data("""
             {
               "results": [
                 {
-                  "id": "MLA123",
-                  "title": "iPhone de prueba en MLA",
-                  "price": 2000,
-                  "currency_id": "ARS",
-                  "thumbnail": "https://http2.mlstatic.com/D_456.jpg",
-                  "shipping": {
-                    "free_shipping": false,
-                    "store_pickup": true
+                  "id": "MLA-PRODUCT-123",
+                  "name": "iPhone de prueba en MLA",
+                  "family_name": "iPhone",
+                  "buy_box_winner": {
+                    "price": 2000,
+                    "currency_id": "ARS",
+                    "sold_quantity": 4,
+                    "available_quantity": 1,
+                    "condition": "new",
+                    "shipping": {
+                      "free_shipping": false,
+                      "store_pickup": true
+                    }
                   }
                 }
               ]
+            }
+            """.utf8)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        case "/products/MCO-PRODUCT-123":
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = Data("""
+            {
+              "id": "MCO-PRODUCT-123",
+              "name": "iPhone de prueba",
+              "family_name": "iPhone",
+              "sold_quantity": 9,
+              "permalink": "https://mercadolibre.com.co/p/MCO-PRODUCT-123",
+              "pictures": [
+                {
+                  "secure_url": "https://http2.mlstatic.com/D_123.jpg"
+                }
+              ],
+              "attributes": [
+                {
+                  "id": "BRAND",
+                  "name": "Marca",
+                  "value_name": "Apple"
+                }
+              ],
+              "short_description": {
+                "content": "Catalog detail"
+              },
+              "buy_box_winner": {
+                "item_id": "MCOITEM123",
+                "price": 1200,
+                "currency_id": "COP",
+                "sold_quantity": 8,
+                "available_quantity": 3,
+                "warranty": "12 meses",
+                "condition": "new",
+                "shipping": {
+                  "free_shipping": true,
+                  "store_pickup": false
+                }
+              }
             }
             """.utf8)
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)

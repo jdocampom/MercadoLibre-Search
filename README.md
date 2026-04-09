@@ -47,7 +47,7 @@ flowchart LR
     I --> J["MELIAuthenticationSession"]
     J --> K["KeychainStore"]
     J --> L["Mercado Libre OAuth /oauth/token"]
-    I --> M["Mercado Libre API /sites, /items"]
+    I --> M["Mercado Libre API /products, /users/me"]
 ```
 
 ### Composition root
@@ -87,7 +87,7 @@ flowchart LR
 
 ### Live mode
 
-`live` mode uses `LiveProductRepository`, `MELIAPIClient`, and `MELIAuthenticationSession`. The app still resolves and validates OAuth sessions, but public catalog requests can retry anonymously when Mercado Libre rejects the current bearer token with `403`.
+`live` mode uses `LiveProductRepository`, `MELIAPIClient`, and `MELIAuthenticationSession`. Search now uses Mercado Libre's catalog product endpoints (`/products/search` and `/products/{id}`), which require a user-scoped OAuth bearer token and do not fall back to anonymous access.
 
 The search screen exposes a runtime menu to switch between both modes. Switching mode rebuilds the app container and resets navigation and search state so the UI reflects the newly selected backend immediately.
 
@@ -95,18 +95,17 @@ The search screen exposes a runtime menu to switch between both modes. Switching
 
 `MELIAuthenticationSession` supports three live credential sources:
 
-1. `MELI_ACCESS_TOKEN` from the process environment.
-2. A previously stored OAuth session loaded from Keychain.
+1. A previously stored OAuth session loaded from Keychain.
+2. `MELI_ACCESS_TOKEN` from the process environment when no reusable stored session is available.
 3. A new authorization-code flow started from the in-app OAuth sheet.
 
 The live auth bootstrap is intentionally deterministic so the app can reuse a working session before it asks the user to authorize again:
 
 1. `demo` mode short-circuits all live auth work.
-2. `MELI_ACCESS_TOKEN` wins immediately and enables live requests without touching Keychain.
-3. If `MELI_APP_ID`, `MELI_CLIENT_SECRET`, or `MELI_REDIRECT_URL` is missing, the session surfaces `missingConfiguration`.
-4. Otherwise the app loads a persisted session from Keychain using service `com.jdocampo.MeLi-Lite.mercadolibre.oauth` and an account derived from `MELI_APP_ID`.
-5. Stored credentials refresh automatically when the access token will expire within the next five minutes.
-6. If no reusable credentials exist, the search screen prompts the user to start an interactive authorization-code flow.
+2. If OAuth is configured, the app loads a persisted session from Keychain using service `com.jdocampo.MeLi-Lite.mercadolibre.oauth` and an account derived from `MELI_APP_ID`.
+3. Stored credentials refresh automatically when the access token will expire within the next five minutes.
+4. If no reusable stored session exists, the app falls back to `MELI_ACCESS_TOKEN` only when it is already a user-scoped `APP_USR` token.
+5. If no reusable credentials exist, the search screen prompts the user to start an interactive authorization-code flow.
 
 `SearchScreen` calls `prepareIfNeeded()` on first appearance and presents `OAuthSetupSheet` automatically when live mode is active, OAuth is fully configured, and no reusable session exists. `ContentView` also forwards incoming URLs through `onOpenURL`, so the same session can finish the auth flow if the callback is delivered back to the app directly.
 
@@ -124,7 +123,7 @@ Mercado Libre Dev Center requires an `https://` redirect URL. The shared `MELISe
 - The token exchange uses `POST https://api.mercadolibre.com/oauth/token` with `grant_type=authorization_code`. The current implementation validates `state` and does not send PKCE parameters.
 - Successful responses persist `access_token`, `refresh_token`, expiration, `scope`, and `user_id` in Keychain. `signOut()` deletes that stored item.
 - Closing the embedded browser before capture calls `cancelInteractiveAuthorization()`, which clears only the pending auth attempt and keeps any previously stored session intact.
-- Public catalog endpoints such as `/sites/{site}/search` and `/items/{id}` retry once without the `Authorization` header when Mercado Libre returns `403` for the bearer token. Session validation with `/users/me` remains authenticated-only.
+- Live product search uses `GET /products/search?status=active&site_id=...&q=...`, and detail uses `GET /products/{product_id}`. Session validation with `/users/me` remains authenticated-only.
 
 ### End-to-end authentication lifecycle
 
@@ -133,34 +132,36 @@ flowchart TD
     A["App launch or switch to live mode"] --> B["prepareIfNeeded()"]
     B --> C{"Using demo data?"}
     C -- "Yes" --> D["Status = demoMode"]
-    C -- "No" --> E{"MELI_ACCESS_TOKEN present?"}
-    E -- "Yes" --> F["Status = usingEnvironmentAccessToken"]
-    E -- "No" --> G{"OAuth config complete?"}
-    G -- "No" --> H["Status = missingConfiguration"]
-    G -- "Yes" --> I["Load stored credentials from Keychain"]
+    C -- "No" --> E{"OAuth config complete?"}
+    E -- "No" --> F{"APP_USR MELI_ACCESS_TOKEN present?"}
+    F -- "Yes" --> G["Status = usingEnvironmentAccessToken"]
+    F -- "No" --> H["Status = missingConfiguration"]
+    E -- "Yes" --> I["Load stored credentials from Keychain"]
     I --> J{"Stored session exists?"}
-    J -- "No" --> K["Status = signedOut"]
-    J -- "Yes" --> L{"Expires within 5 minutes?"}
-    L -- "No" --> M["Status = authenticated"]
-    L -- "Yes" --> N["POST /oauth/token with refresh_token grant"]
-    N --> O["Persist refreshed tokens in Keychain"]
-    O --> M
-    K --> P["SearchScreen auto-presents OAuthSetupSheet"]
-    P --> Q["User taps Connect OAuth"]
-    Q --> R["authorizationURL() builds Mercado Libre /authorization URL and stores a random state"]
-    R --> S["Embedded SwiftUI WebKit sheet loads Mercado Libre consent page"]
-    S --> T{"Loaded URL matches MELI_REDIRECT_URL scheme, host, port, and path?"}
-    T -- "No" --> U["Keep waiting for the callback page"]
-    U --> S
-    T -- "Yes" --> V["Copy full callback URL into the form and auto-submit"]
-    V --> W{"Callback contains code and the exact pending state?"}
-    W -- "No" --> X["Status = failed(invalidAuthorizationCallback)"]
-    W -- "Yes" --> Y["POST /oauth/token with authorization_code grant"]
-    Y --> Z["Persist access_token, refresh_token, expiry, scope, and user_id in Keychain"]
-    Z --> M
-    M --> AA["Optional: Validate Session calls GET /users/me"]
-    S --> AB["If the sheet closes before capture: cancelInteractiveAuthorization()"]
-    AB --> K
+    J -- "No" --> K{"APP_USR MELI_ACCESS_TOKEN present?"}
+    K -- "Yes" --> L["Status = usingEnvironmentAccessToken"]
+    K -- "No" --> M["Status = signedOut"]
+    J -- "Yes" --> N{"Expires within 5 minutes?"}
+    N -- "No" --> O["Status = authenticated"]
+    N -- "Yes" --> P["POST /oauth/token with refresh_token grant"]
+    P --> Q["Persist refreshed tokens in Keychain"]
+    Q --> O
+    M --> R["SearchScreen auto-presents OAuthSetupSheet"]
+    R --> S["User taps Connect OAuth"]
+    S --> T["authorizationURL() builds Mercado Libre /authorization URL and stores a random state"]
+    T --> U["Embedded SwiftUI WebKit sheet loads Mercado Libre consent page"]
+    U --> V{"Loaded URL matches MELI_REDIRECT_URL scheme, host, port, and path?"}
+    V -- "No" --> W["Keep waiting for the callback page"]
+    W --> U
+    V -- "Yes" --> X["Copy full callback URL into the form and auto-submit"]
+    X --> Y{"Callback contains code and the exact pending state?"}
+    Y -- "No" --> Z["Status = failed(invalidAuthorizationCallback)"]
+    Y -- "Yes" --> AA["POST /oauth/token with authorization_code grant"]
+    AA --> AB["Persist access_token, refresh_token, expiry, scope, and user_id in Keychain"]
+    AB --> O
+    O --> AC["Optional: Validate Session calls GET /users/me"]
+    U --> AD["If the sheet closes before capture: cancelInteractiveAuthorization()"]
+    AD --> M
 ```
 
 ### Session validation
@@ -237,7 +238,7 @@ sequenceDiagram
     User->>SearchScreen: Submit query
     SearchScreen->>SearchViewModel: search()
     SearchViewModel->>Repository: searchProducts(query)
-    Repository->>API: GET /sites/{site}/search?q=...
+    Repository->>API: GET /products/search?status=active&site_id=...&q=...
     API-->>Repository: Search payload
     Repository-->>SearchViewModel: [ProductSummary]
     SearchViewModel-->>SearchScreen: loaded state

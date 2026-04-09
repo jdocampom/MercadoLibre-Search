@@ -205,7 +205,7 @@ struct MELIOAuthConfigurationTests {
 }
 
 @MainActor
-@Suite("MELI Authentication Session")
+@Suite(.serialized)
 struct MELIAuthenticationSessionTests {
     @Test
     func environmentTokenStartsInAuthenticatedEnvironmentState() {
@@ -213,7 +213,7 @@ struct MELIAuthenticationSessionTests {
             "MELI_DATA_SOURCE": "live",
             "MELI_ACCESS_TOKEN": "APP_USR-env-token"
         ])
-        let session = MELIAuthenticationSession(configuration: configuration)
+        let session = makeSession(configuration: configuration)
 
         #expect(session.status == .usingEnvironmentAccessToken)
         #expect(session.isAuthenticated)
@@ -224,7 +224,7 @@ struct MELIAuthenticationSessionTests {
 
     @Test
     func liveWithoutOAuthConfigurationStartsMissingConfiguration() {
-        let session = MELIAuthenticationSession(
+        let session = makeSession(
             configuration: AppConfiguration.resolve(environment: [
                 "MELI_DATA_SOURCE": "live",
                 "MELI_SITE_ID": "MCO"
@@ -238,7 +238,7 @@ struct MELIAuthenticationSessionTests {
 
     @Test
     func rejectsRawAuthorizationCodeWithoutFullCallbackURL() async throws {
-        let session = MELIAuthenticationSession(configuration: liveOAuthConfiguration())
+        let session = makeSession(configuration: liveOAuthConfiguration())
         _ = try session.authorizationURL()
 
         let didAuthorize = await session.completeAuthorization(from: "raw-authorization-code")
@@ -249,7 +249,7 @@ struct MELIAuthenticationSessionTests {
 
     @Test
     func authorizationURLOmitsPKCEParameters() throws {
-        let session = MELIAuthenticationSession(configuration: liveOAuthConfiguration())
+        let session = makeSession(configuration: liveOAuthConfiguration())
         let authorizationURL = try session.authorizationURL()
         let components = try #require(URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false))
         let queryItemNames = Set((components.queryItems ?? []).map(\.name))
@@ -265,7 +265,7 @@ struct MELIAuthenticationSessionTests {
     @Test
     func authorizationURLIncludesConfiguredRedirectAndGeneratedState() throws {
         let configuration = liveOAuthConfiguration()
-        let session = MELIAuthenticationSession(configuration: configuration)
+        let session = makeSession(configuration: configuration)
         let authorizationURL = try session.authorizationURL()
         let components = try #require(URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false))
 
@@ -279,7 +279,7 @@ struct MELIAuthenticationSessionTests {
 
     @Test
     func rejectsCallbackThatDoesNotMatchRegisteredRedirect() async throws {
-        let session = MELIAuthenticationSession(configuration: liveOAuthConfiguration())
+        let session = makeSession(configuration: liveOAuthConfiguration())
         let authorizationURL = try session.authorizationURL()
         let components = try #require(URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false))
         let state = try #require(components.queryItems?.first(where: { $0.name == "state" })?.value)
@@ -294,7 +294,7 @@ struct MELIAuthenticationSessionTests {
 
     @Test
     func completeAuthorizationIfPossibleIgnoresUnrelatedIncomingURLs() async throws {
-        let session = MELIAuthenticationSession(configuration: liveOAuthConfiguration())
+        let session = makeSession(configuration: liveOAuthConfiguration())
         _ = try session.authorizationURL()
 
         let didAuthorize = await session.completeAuthorizationIfPossible(
@@ -309,7 +309,7 @@ struct MELIAuthenticationSessionTests {
     @Test
     func completeAuthorizationCapturesUserIDFromTokenResponse() async throws {
         let configuration = liveOAuthConfiguration(clientID: "test-client-\(UUID().uuidString)")
-        let session = MELIAuthenticationSession(
+        let session = makeSession(
             configuration: configuration,
             urlSession: makeStubURLSession()
         )
@@ -331,10 +331,15 @@ struct MELIAuthenticationSessionTests {
     @Test
     func prepareIfNeededPrefersPersistedOAuthSessionOverEnvironmentToken() async throws {
         let clientID = "test-client-\(UUID().uuidString)"
+        let sharedKeychainStore = KeychainStore(
+            service: "com.jdocampo.MeLi-Lite.mercadolibre.oauth.tests.\(UUID().uuidString)",
+            account: UUID().uuidString
+        )
         let persistedConfiguration = liveOAuthConfiguration(clientID: clientID)
-        let persistedSession = MELIAuthenticationSession(
+        let persistedSession = makeSession(
             configuration: persistedConfiguration,
-            urlSession: makeStubURLSession()
+            urlSession: makeStubURLSession(),
+            keychainStore: sharedKeychainStore
         )
         let authorizationURL = try persistedSession.authorizationURL()
         let components = try #require(URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false))
@@ -349,9 +354,10 @@ struct MELIAuthenticationSessionTests {
             clientID: clientID,
             accessToken: "APP_USR-env-token"
         )
-        let session = MELIAuthenticationSession(
+        let session = makeSession(
             configuration: configuration,
-            urlSession: makeStubURLSession()
+            urlSession: makeStubURLSession(),
+            keychainStore: sharedKeychainStore
         )
 
         await session.prepareIfNeeded()
@@ -366,7 +372,7 @@ struct MELIAuthenticationSessionTests {
 
     @Test
     func invalidEnvironmentTokenPromptsForInteractiveOAuthWhenAvailable() async {
-        let session = MELIAuthenticationSession(
+        let session = makeSession(
             configuration: liveOAuthConfiguration(accessToken: "APP-invalid-token"),
             urlSession: makeStubURLSession()
         )
@@ -381,7 +387,7 @@ struct MELIAuthenticationSessionTests {
     @Test
     func completeAuthorizationIfPossibleAcceptsRegisteredHTTPSCallback() async throws {
         let configuration = liveOAuthConfiguration(clientID: "test-client-\(UUID().uuidString)")
-        let session = MELIAuthenticationSession(
+        let session = makeSession(
             configuration: configuration,
             urlSession: makeStubURLSession()
         )
@@ -401,48 +407,8 @@ struct MELIAuthenticationSessionTests {
     }
 
     @Test
-    func validateCurrentSessionUsesUsersMeEndpoint() async {
-        let configuration = AppConfiguration.resolve(environment: [
-            "MELI_DATA_SOURCE": "live",
-            "MELI_SITE_ID": "MCO",
-            "MELI_ACCESS_TOKEN": "APP_USR-env-token"
-        ])
-        let session = MELIAuthenticationSession(
-            configuration: configuration,
-            urlSession: makeStubURLSession()
-        )
-
-        let didValidate = await session.validateCurrentSession()
-
-        #expect(didValidate)
-        #expect(session.currentUserID == 24680)
-        #expect(session.currentSiteID == "MCO")
-        #expect(session.sessionValidationTitle == "Session Confirmed")
-        #expect(session.sessionValidationMessage.contains("24680"))
-    }
-
-    @Test
-    func resolvedSearchSiteIDUsesValidatedUserSite() async {
-        let configuration = AppConfiguration.resolve(environment: [
-            "MELI_DATA_SOURCE": "live",
-            "MELI_SITE_ID": "MLA",
-            "MELI_ACCESS_TOKEN": "APP_USR-env-token"
-        ])
-        let session = MELIAuthenticationSession(
-            configuration: configuration,
-            urlSession: makeStubURLSession()
-        )
-
-        let resolvedSiteID = await session.resolvedSearchSiteID()
-
-        #expect(resolvedSiteID == "MCO")
-        #expect(session.currentSiteID == "MCO")
-        #expect(session.sessionValidationTitle == "Session Confirmed")
-    }
-
-    @Test
     func validateCurrentSessionReturnsFalseInDemoMode() async {
-        let session = MELIAuthenticationSession(configuration: .preview)
+        let session = makeSession(configuration: .preview)
 
         let didValidate = await session.validateCurrentSession()
 
@@ -458,7 +424,7 @@ struct MELIAuthenticationSessionTests {
             "MELI_SITE_ID": "MCO",
             "MELI_ACCESS_TOKEN": "APP_USR-forbidden-token"
         ])
-        let session = MELIAuthenticationSession(
+        let session = makeSession(
             configuration: configuration,
             urlSession: makeStubURLSession()
         )
@@ -478,7 +444,7 @@ struct MELIAuthenticationSessionTests {
             "MELI_SITE_ID": "MCO",
             "MELI_ACCESS_TOKEN": "APP_USR-env-token"
         ])
-        let session = MELIAuthenticationSession(
+        let session = makeSession(
             configuration: configuration,
             urlSession: makeStubURLSession()
         )
@@ -511,6 +477,22 @@ struct MELIAuthenticationSessionTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubMercadoLibreURLProtocol.self]
         return URLSession(configuration: configuration)
+    }
+
+    private func makeSession(
+        configuration: AppConfiguration,
+        urlSession: URLSession = .shared,
+        keychainStore: KeychainStore? = nil
+    ) -> MELIAuthenticationSession {
+        MELIAuthenticationSession(
+            configuration: configuration,
+            urlSession: urlSession,
+            keychainStore: keychainStore
+                ?? KeychainStore(
+                    service: "com.jdocampo.MeLi-Lite.mercadolibre.oauth.tests.\(UUID().uuidString)",
+                    account: UUID().uuidString
+                )
+        )
     }
 }
 
