@@ -127,9 +127,9 @@ import OSLog
         oauthConfiguration != nil
     }
 
-    /// Indicates whether the live-mode banner should suggest configuring or managing OAuth.
+    /// Indicates whether the live-mode banner should surface session status and auth actions.
     var shouldShowAuthorizationBanner: Bool {
-        !configuration.isUsingDemoData && configuration.accessToken == nil
+        !configuration.isUsingDemoData
     }
 
     /// Indicates whether the UI should proactively surface the OAuth sheet on first launch.
@@ -280,8 +280,51 @@ import OSLog
             return
         }
 
+        do {
+            persistedCredentials = try loadPersistedCredentials()
+            currentUserID = persistedCredentials?.userID
+        } catch {
+            let appError = AppError.from(error)
+            latestError = appError
+            status = .failed(appError)
+            return
+        }
+
+        if let persistedCredentials {
+            do {
+                if persistedCredentials.requiresRefresh {
+                    _ = try await refreshStoredCredentials()
+                } else {
+                    status = .authenticated
+                }
+                return
+            } catch {
+                let appError = AppError.from(error)
+                if activateEnvironmentAccessTokenIfAvailable(
+                    loggingFallbackFrom: appError
+                ) {
+                    return
+                }
+
+                latestError = appError
+                status = .failed(appError)
+                return
+            }
+        }
+
+        if activateEnvironmentAccessTokenIfAvailable() {
+            return
+        }
+
         guard configuration.accessToken == nil else {
-            status = .usingEnvironmentAccessToken
+            let appError = AppError.invalidUserAccessToken
+            latestError = appError
+
+            if canAuthorizeInteractively {
+                status = .signedOut
+            } else {
+                status = .failed(appError)
+            }
             return
         }
 
@@ -290,25 +333,7 @@ import OSLog
             return
         }
 
-        do {
-            guard let persistedCredentials = try loadPersistedCredentials() else {
-                status = .signedOut
-                return
-            }
-
-            self.persistedCredentials = persistedCredentials
-            currentUserID = persistedCredentials.userID
-
-            if persistedCredentials.requiresRefresh {
-                _ = try await refreshStoredCredentials()
-            } else {
-                status = .authenticated
-            }
-        } catch {
-            let appError = AppError.from(error)
-            latestError = appError
-            status = .failed(appError)
-        }
+        status = .signedOut
     }
 
     /// Builds the Mercado Libre authorization URL for the current OAuth attempt.
@@ -388,10 +413,10 @@ import OSLog
 
         if configuration.isUsingDemoData {
             status = .demoMode
-        } else if configuration.accessToken != nil {
-            status = .usingEnvironmentAccessToken
         } else if persistedCredentials != nil {
             status = .authenticated
+        } else if activateEnvironmentAccessTokenIfAvailable() {
+            return
         } else if canAuthorizeInteractively {
             status = .signedOut
         } else {
@@ -415,8 +440,8 @@ import OSLog
 
         if configuration.isUsingDemoData {
             status = .demoMode
-        } else if configuration.accessToken != nil {
-            status = .usingEnvironmentAccessToken
+        } else if activateEnvironmentAccessTokenIfAvailable() {
+            return
         } else if canAuthorizeInteractively {
             status = .signedOut
         } else {
@@ -430,16 +455,6 @@ import OSLog
     func validAccessToken() async throws -> String {
         await prepareIfNeeded()
 
-        if let environmentAccessToken = configuration.accessToken {
-            if environmentAccessToken.hasPrefix("APP_USR-") {
-                return environmentAccessToken
-            }
-
-            AppLogger.authentication.error(
-                "Ignoring MELI_ACCESS_TOKEN because it is not a user-scoped APP_USR token."
-            )
-        }
-
         if let persistedCredentials, !persistedCredentials.requiresRefresh {
             status = .authenticated
             currentUserID = persistedCredentials.userID
@@ -447,7 +462,30 @@ import OSLog
         }
 
         if persistedCredentials != nil {
-            return try await refreshStoredCredentials()
+            do {
+                return try await refreshStoredCredentials()
+            } catch {
+                let appError = AppError.from(error)
+                if let environmentAccessToken = validatedEnvironmentAccessToken(
+                    loggingFallbackFrom: appError
+                ) {
+                    currentUserID = nil
+                    latestError = nil
+                    sessionValidation = .idle
+                    status = .usingEnvironmentAccessToken
+                    return environmentAccessToken
+                }
+
+                throw appError
+            }
+        }
+
+        if let environmentAccessToken = validatedEnvironmentAccessToken() {
+            currentUserID = nil
+            latestError = nil
+            sessionValidation = .idle
+            status = .usingEnvironmentAccessToken
+            return environmentAccessToken
         }
 
         guard canAuthorizeInteractively else {
@@ -821,6 +859,45 @@ private extension MELIAuthenticationSession {
             currentUserID = 999_999
         }
 
+        return true
+    }
+
+    /// Returns the environment bearer token only when it is user-scoped and therefore valid for search.
+    /// - Parameter fallbackError: Optional error that explains why the session is falling back to the environment token.
+    /// - Returns: A usable `APP_USR` token from the process environment, or `nil`.
+    func validatedEnvironmentAccessToken(loggingFallbackFrom fallbackError: AppError? = nil) -> String? {
+        guard let environmentAccessToken = configuration.accessToken else {
+            return nil
+        }
+
+        guard environmentAccessToken.hasPrefix("APP_USR-") else {
+            AppLogger.authentication.error(
+                "Ignoring MELI_ACCESS_TOKEN because it is not a user-scoped APP_USR token."
+            )
+            return nil
+        }
+
+        if let fallbackError {
+            AppLogger.authentication.error(
+                "Stored Mercado Libre session became unavailable (\(fallbackError.developerDescription)). Falling back to MELI_ACCESS_TOKEN."
+            )
+        }
+
+        return environmentAccessToken
+    }
+
+    /// Activates the environment token as the current session when no stored OAuth session is preferred.
+    /// - Parameter fallbackError: Optional error that explains why the environment token is being used as a fallback.
+    /// - Returns: `true` when the session switched to `MELI_ACCESS_TOKEN`.
+    func activateEnvironmentAccessTokenIfAvailable(loggingFallbackFrom fallbackError: AppError? = nil) -> Bool {
+        guard validatedEnvironmentAccessToken(loggingFallbackFrom: fallbackError) != nil else {
+            return false
+        }
+
+        currentUserID = nil
+        latestError = nil
+        sessionValidation = .idle
+        status = .usingEnvironmentAccessToken
         return true
     }
 }

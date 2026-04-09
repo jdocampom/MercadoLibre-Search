@@ -219,6 +219,7 @@ struct MELIAuthenticationSessionTests {
         #expect(session.isAuthenticated)
         #expect(session.canValidateCurrentSession)
         #expect(session.statusMessage.contains("MELI_ACCESS_TOKEN"))
+        #expect(session.shouldShowAuthorizationBanner)
     }
 
     @Test
@@ -328,6 +329,56 @@ struct MELIAuthenticationSessionTests {
     }
 
     @Test
+    func prepareIfNeededPrefersPersistedOAuthSessionOverEnvironmentToken() async throws {
+        let clientID = "test-client-\(UUID().uuidString)"
+        let persistedConfiguration = liveOAuthConfiguration(clientID: clientID)
+        let persistedSession = MELIAuthenticationSession(
+            configuration: persistedConfiguration,
+            urlSession: makeStubURLSession()
+        )
+        let authorizationURL = try persistedSession.authorizationURL()
+        let components = try #require(URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false))
+        let state = try #require(components.queryItems?.first(where: { $0.name == "state" })?.value)
+
+        let didAuthorize = await persistedSession.completeAuthorization(
+            from: "https://jdocampom.com/meli/callback?code=test-code&state=\(state)"
+        )
+        #expect(didAuthorize)
+
+        let configuration = liveOAuthConfiguration(
+            clientID: clientID,
+            accessToken: "APP_USR-env-token"
+        )
+        let session = MELIAuthenticationSession(
+            configuration: configuration,
+            urlSession: makeStubURLSession()
+        )
+
+        await session.prepareIfNeeded()
+        let accessToken = try await session.validAccessToken()
+
+        #expect(accessToken == "APP_USR-stub-access-token")
+        #expect(session.status == .authenticated)
+        #expect(session.currentUserID == 987654)
+
+        session.signOut()
+    }
+
+    @Test
+    func invalidEnvironmentTokenPromptsForInteractiveOAuthWhenAvailable() async {
+        let session = MELIAuthenticationSession(
+            configuration: liveOAuthConfiguration(accessToken: "APP-invalid-token"),
+            urlSession: makeStubURLSession()
+        )
+
+        await session.prepareIfNeeded()
+
+        #expect(session.status == .signedOut)
+        #expect(session.latestError == .invalidUserAccessToken)
+        #expect(session.shouldPromptForAuthorization)
+    }
+
+    @Test
     func completeAuthorizationIfPossibleAcceptsRegisteredHTTPSCallback() async throws {
         let configuration = liveOAuthConfiguration(clientID: "test-client-\(UUID().uuidString)")
         let session = MELIAuthenticationSession(
@@ -420,15 +471,20 @@ struct MELIAuthenticationSessionTests {
         #expect(session.status == .usingEnvironmentAccessToken)
     }
 
-    private func liveOAuthConfiguration(clientID: String = "test-client-\(UUID().uuidString)") -> AppConfiguration {
-        AppConfiguration.resolve(environment: [
+    private func liveOAuthConfiguration(
+        clientID: String = "test-client-\(UUID().uuidString)",
+        accessToken: String? = nil
+    ) -> AppConfiguration {
+        var environment = [
             "MELI_DATA_SOURCE": "live",
             "MELI_SITE_ID": "MCO",
             "MELI_APP_ID": clientID,
             "MELI_CLIENT_SECRET": "secret",
             "MELI_REDIRECT_URL": "https://jdocampom.com/meli/callback",
             "MELI_AUTH_HOST": "auth.mercadolibre.com.co"
-        ])
+        ]
+        environment["MELI_ACCESS_TOKEN"] = accessToken
+        return AppConfiguration.resolve(environment: environment)
     }
 
     private func makeStubURLSession() -> URLSession {
