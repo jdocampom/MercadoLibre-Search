@@ -431,11 +431,13 @@ import OSLog
         await prepareIfNeeded()
 
         if let environmentAccessToken = configuration.accessToken {
-            return environmentAccessToken
-        }
+            if environmentAccessToken.hasPrefix("APP_USR-") {
+                return environmentAccessToken
+            }
 
-        guard canAuthorizeInteractively else {
-            throw AppError.missingOAuthConfiguration
+            AppLogger.authentication.error(
+                "Ignoring MELI_ACCESS_TOKEN because it is not a user-scoped APP_USR token."
+            )
         }
 
         if let persistedCredentials, !persistedCredentials.requiresRefresh {
@@ -448,8 +450,12 @@ import OSLog
             return try await refreshStoredCredentials()
         }
 
+        guard canAuthorizeInteractively else {
+            throw configuration.accessToken == nil ? AppError.missingOAuthConfiguration : AppError.invalidUserAccessToken
+        }
+
         status = .signedOut
-        throw AppError.missingAccessToken
+        throw configuration.accessToken == nil ? AppError.missingAccessToken : AppError.invalidUserAccessToken
     }
 
     /// Confirms the current bearer token by calling Mercado Libre's `/users/me` endpoint.

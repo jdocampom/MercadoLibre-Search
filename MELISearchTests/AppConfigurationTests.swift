@@ -211,7 +211,7 @@ struct MELIAuthenticationSessionTests {
     func environmentTokenStartsInAuthenticatedEnvironmentState() {
         let configuration = AppConfiguration.resolve(environment: [
             "MELI_DATA_SOURCE": "live",
-            "MELI_ACCESS_TOKEN": "env-token"
+            "MELI_ACCESS_TOKEN": "APP_USR-env-token"
         ])
         let session = MELIAuthenticationSession(configuration: configuration)
 
@@ -354,7 +354,7 @@ struct MELIAuthenticationSessionTests {
         let configuration = AppConfiguration.resolve(environment: [
             "MELI_DATA_SOURCE": "live",
             "MELI_SITE_ID": "MCO",
-            "MELI_ACCESS_TOKEN": "env-token"
+            "MELI_ACCESS_TOKEN": "APP_USR-env-token"
         ])
         let session = MELIAuthenticationSession(
             configuration: configuration,
@@ -385,7 +385,7 @@ struct MELIAuthenticationSessionTests {
         let configuration = AppConfiguration.resolve(environment: [
             "MELI_DATA_SOURCE": "live",
             "MELI_SITE_ID": "MCO",
-            "MELI_ACCESS_TOKEN": "forbidden-token"
+            "MELI_ACCESS_TOKEN": "APP_USR-forbidden-token"
         ])
         let session = MELIAuthenticationSession(
             configuration: configuration,
@@ -405,7 +405,7 @@ struct MELIAuthenticationSessionTests {
         let configuration = AppConfiguration.resolve(environment: [
             "MELI_DATA_SOURCE": "live",
             "MELI_SITE_ID": "MCO",
-            "MELI_ACCESS_TOKEN": "env-token"
+            "MELI_ACCESS_TOKEN": "APP_USR-env-token"
         ])
         let session = MELIAuthenticationSession(
             configuration: configuration,
@@ -476,7 +476,7 @@ private final class StubMercadoLibreURLProtocol: URLProtocol {
             let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
             let data = Data("""
             {
-              "access_token": "stub-access-token",
+              "access_token": "APP_USR-stub-access-token",
               "refresh_token": "stub-refresh-token",
               "expires_in": 3600,
               "scope": "read offline_access",
@@ -492,7 +492,7 @@ private final class StubMercadoLibreURLProtocol: URLProtocol {
             let data: Data
 
             switch authorizationValue {
-            case "Bearer forbidden-token":
+            case "Bearer APP_USR-forbidden-token":
                 statusCode = 403
                 data = Data("{\"message\":\"forbidden\",\"error\":\"forbidden\",\"status\":403,\"cause\":[]}".utf8)
             case nil:

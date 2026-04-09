@@ -76,6 +76,12 @@ final class MELIAPIClient {
             throw appError
         }
 
+        if endpoint.requiresUserAccessToken, !preferredAccessToken.isMercadoLibreUserAccessToken {
+            let appError = AppError.invalidUserAccessToken
+            AppLogger.networking.error("\(appError.developerDescription)")
+            throw appError
+        }
+
         return try await performAuthorizedRequest(
             endpoint: endpoint,
             accessToken: preferredAccessToken,
@@ -178,5 +184,12 @@ final class MELIAPIClient {
         default:
             return .httpStatus(statusCode)
         }
+    }
+}
+
+private extension String {
+    /// Mercado Libre user tokens produced by the Authorization Code flow start with `APP_USR-`.
+    var isMercadoLibreUserAccessToken: Bool {
+        hasPrefix("APP_USR-")
     }
 }

@@ -5,18 +5,18 @@ import Testing
 @Suite("MELI API Client")
 struct MELIAPIClientTests {
     @Test
-    func searchUsesAnonymousRequestForPublicCatalogEndpoint() async throws {
+    func searchUsesBearerTokenForSearchEndpoint() async throws {
         PublicCatalogFallbackRequestRecorder.reset()
 
         let configuration = AppConfiguration.resolve(environment: [
             "MELI_DATA_SOURCE": "live",
             "MELI_SITE_ID": "MCO",
-            "MELI_ACCESS_TOKEN": "env-token"
+            "MELI_ACCESS_TOKEN": "APP_USR-env-token"
         ])
 
         let client = MELIAPIClient(
             configuration: configuration,
-            accessTokenProvider: { "env-token" },
+            accessTokenProvider: { "APP_USR-env-token" },
             urlSession: makeStubURLSession()
         )
 
@@ -25,7 +25,32 @@ struct MELIAPIClientTests {
         #expect(results.count == 1)
         #expect(results.first?.id == "MCO123")
         #expect(results.first?.title == "iPhone de prueba")
-        #expect(PublicCatalogFallbackRequestRecorder.snapshot() == [nil])
+        #expect(PublicCatalogFallbackRequestRecorder.snapshot() == ["Bearer APP_USR-env-token"])
+    }
+
+    @Test
+    func searchRejectsApplicationScopedAccessToken() async {
+        PublicCatalogFallbackRequestRecorder.reset()
+
+        let configuration = AppConfiguration.resolve(environment: [
+            "MELI_DATA_SOURCE": "live",
+            "MELI_SITE_ID": "MCO",
+            "MELI_ACCESS_TOKEN": "APP-application-token"
+        ])
+
+        let client = MELIAPIClient(
+            configuration: configuration,
+            accessTokenProvider: { "APP-application-token" },
+            urlSession: makeStubURLSession()
+        )
+
+        do {
+            _ = try await client.searchProducts(matching: "iPhone")
+            Issue.record("Expected search to reject APP application tokens.")
+        } catch {
+            #expect(AppError.from(error) == .invalidUserAccessToken)
+            #expect(PublicCatalogFallbackRequestRecorder.snapshot().isEmpty)
+        }
     }
 
     private func makeStubURLSession() -> URLSession {

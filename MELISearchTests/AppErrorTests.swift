@@ -103,6 +103,21 @@ struct AppErrorTests {
     }
 
     @Test
+    func invalidUserAccessTokenMentionsAuthorizationCodeFlow() {
+        let error = AppError.invalidUserAccessToken
+
+        #expect(error.errorDescription == "Mercado Libre search needs a user OAuth token.")
+        #expect(
+            error.recoverySuggestion
+                == "Reauthorize the app with the Authorization Code flow so it gets an APP_USR token, and avoid using APP tokens in MELI_ACCESS_TOKEN."
+        )
+        #expect(
+            error.developerDescription
+                == "The current Mercado Libre access token is not user-scoped. Search requests require an APP_USR bearer token obtained from the Authorization Code flow."
+        )
+    }
+
+    @Test
     func timedOutTransportUsesRequestDurationMessaging() {
         let error = AppError.transport(.timedOut)
 

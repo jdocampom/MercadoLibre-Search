@@ -23,6 +23,14 @@ enum MELIEndpoint {
         }
     }
 
+    /// Indicates whether the endpoint requires a user-scoped OAuth bearer token (`APP_USR-...`).
+    var requiresUserAccessToken: Bool {
+        switch self {
+        case .search, .itemDetail:
+            return true
+        }
+    }
+
     /// Builds an authorized JSON request for the selected endpoint.
     /// - Parameter accessToken: Bearer token used to authorize the request.
     /// - Returns: A configured request ready for `URLSession`.

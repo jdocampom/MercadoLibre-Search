@@ -4,6 +4,8 @@ import Foundation
 enum AppError: Error, LocalizedError, Equatable, Sendable {
     /// Live mode was requested without a configured OAuth token.
     case missingAccessToken
+    /// A live request needs a user-scoped Mercado Libre token (`APP_USR-...`) but received a different token shape.
+    case invalidUserAccessToken
     /// Live mode is missing the OAuth app id, client secret, or redirect URL.
     case missingOAuthConfiguration
     /// The callback URL could not be parsed or did not match the current OAuth attempt.
@@ -49,6 +51,8 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         switch self {
         case .missingAccessToken:
             return "Live Mercado Libre requests need a valid access token."
+        case .invalidUserAccessToken:
+            return "Mercado Libre search needs a user OAuth token."
         case .missingOAuthConfiguration:
             return "OAuth is not fully configured for live Mercado Libre requests."
         case .invalidAuthorizationCallback:
@@ -86,6 +90,8 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         switch self {
         case .missingAccessToken:
             return "Authorize the app with OAuth, provide MELI_ACCESS_TOKEN locally, or switch back to demo mode."
+        case .invalidUserAccessToken:
+            return "Reauthorize the app with the Authorization Code flow so it gets an APP_USR token, and avoid using APP tokens in MELI_ACCESS_TOKEN."
         case .missingOAuthConfiguration:
             return "Configure MELI_APP_ID, MELI_CLIENT_SECRET, and MELI_REDIRECT_URL, or switch back to demo mode."
         case .invalidAuthorizationCallback:
@@ -108,6 +114,8 @@ enum AppError: Error, LocalizedError, Equatable, Sendable {
         switch self {
         case .missingAccessToken:
             return "No valid Mercado Libre access token was available for the live data source."
+        case .invalidUserAccessToken:
+            return "The current Mercado Libre access token is not user-scoped. Search requests require an APP_USR bearer token obtained from the Authorization Code flow."
         case .missingOAuthConfiguration:
             return "Missing MELI_APP_ID, MELI_CLIENT_SECRET, or MELI_REDIRECT_URL while trying to use OAuth."
         case .invalidAuthorizationCallback:
