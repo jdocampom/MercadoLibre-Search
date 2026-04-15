@@ -2,16 +2,19 @@ import Foundation
 
 /// Repository wrapper that injects search and detail behaviors into the UI layer.
 struct ProductRepository {
-    /// Searches products using the active data source implementation.
-    let search: (String) async throws -> [ProductSummary]
+    /// Searches products using the active data source implementation with paging support.
+    let search: (_ query: String, _ offset: Int, _ limit: Int) async throws -> ProductSearchPage
     /// Loads full product details for a selected identifier.
     let detail: (String) async throws -> ProductDetail
 
-    /// Executes a product search against the active repository implementation.
-    /// - Parameter query: Search text entered by the user.
-    /// - Returns: Product summaries that match the provided query.
-    func searchProducts(matching query: String) async throws -> [ProductSummary] {
-        try await search(query)
+    /// Executes a paged product search against the active repository implementation.
+    /// - Parameters:
+    ///   - query: Search text entered by the user.
+    ///   - offset: Zero-based offset of the first item requested for the page.
+    ///   - limit: Maximum number of items requested for the page.
+    /// - Returns: Page of product summaries plus backend paging metadata.
+    func searchProducts(matching query: String, offset: Int, limit: Int) async throws -> ProductSearchPage {
+        try await search(query, offset, limit)
     }
 
     /// Fetches the complete product payload for a selected item.

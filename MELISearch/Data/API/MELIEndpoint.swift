@@ -3,7 +3,7 @@ import Foundation
 /// Mercado Libre endpoints supported by the application.
 enum MELIEndpoint {
     /// Product search endpoint scoped to a specific Mercado Libre site.
-    case productSearch(query: String, siteID: String)
+    case productSearch(query: String, siteID: String, offset: Int, limit: Int)
     /// Product detail endpoint for a selected catalog identifier.
     case productDetail(id: String)
 
@@ -69,11 +69,13 @@ enum MELIEndpoint {
     /// Query items required by the selected endpoint.
     private var queryItems: [URLQueryItem] {
         switch self {
-        case let .productSearch(query, siteID):
+        case let .productSearch(query, siteID, offset, limit):
             return [
                 URLQueryItem(name: "status", value: "active"),
                 URLQueryItem(name: "site_id", value: siteID),
-                URLQueryItem(name: "q", value: query)
+                URLQueryItem(name: "q", value: query),
+                URLQueryItem(name: "offset", value: String(offset)),
+                URLQueryItem(name: "limit", value: String(limit))
             ]
         case .productDetail:
             return []

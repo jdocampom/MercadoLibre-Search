@@ -231,6 +231,207 @@ struct SearchViewModelTests {
         #expect(viewModel.results.isEmpty)
         #expect(viewModel.lastUpdatedAt == nil)
     }
+
+    @Test
+    func firstPageRequestsZeroOffsetWithPageSizeLimit() async {
+        let recorder = PaginationRequestRecorder()
+        let viewModel = SearchViewModel(
+            repository: .pagedMock(search: { query, offset, limit in
+                await recorder.record(query: query, offset: offset, limit: limit)
+                return ProductSearchPage(
+                    items: (0 ..< 10).map { index in TestFixtures.summary(id: "FIRST-\(index)") },
+                    offset: offset,
+                    limit: limit,
+                    total: 30
+                )
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "iPhone"
+        await viewModel.search()
+
+        let requests = await recorder.requests
+        #expect(requests == [PaginationRequest(query: "iPhone", offset: 0, limit: SearchViewModel.pageSize)])
+        #expect(viewModel.results.count == 10)
+        #expect(viewModel.totalResults == 30)
+        #expect(viewModel.paginationState == .idle)
+    }
+
+    @Test
+    func loadMoreAppendsNextPageAndAdvancesOffset() async {
+        let recorder = PaginationRequestRecorder()
+        let viewModel = SearchViewModel(
+            repository: .pagedMock(search: { query, offset, limit in
+                await recorder.record(query: query, offset: offset, limit: limit)
+                let items = (offset ..< offset + limit).map { index in
+                    TestFixtures.summary(id: "ITEM-\(index)")
+                }
+                return ProductSearchPage(items: items, offset: offset, limit: limit, total: 30)
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "iPhone"
+        await viewModel.search()
+        await viewModel.loadMoreIfNeeded()
+
+        let requests = await recorder.requests
+        #expect(requests == [
+            PaginationRequest(query: "iPhone", offset: 0, limit: SearchViewModel.pageSize),
+            PaginationRequest(query: "iPhone", offset: SearchViewModel.pageSize, limit: SearchViewModel.pageSize)
+        ])
+        #expect(viewModel.results.count == 20)
+        #expect(viewModel.results.first?.id == "ITEM-0")
+        #expect(viewModel.results.last?.id == "ITEM-19")
+        #expect(viewModel.paginationState == .idle)
+    }
+
+    @Test
+    func loadMoreBecomesExhaustedWhenBackendReportsEnd() async {
+        let viewModel = SearchViewModel(
+            repository: .pagedMock(search: { _, offset, limit in
+                let pageItems = (offset ..< offset + min(limit, max(0, 15 - offset))).map { index in
+                    TestFixtures.summary(id: "ITEM-\(index)")
+                }
+                return ProductSearchPage(items: pageItems, offset: offset, limit: limit, total: 15)
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "iPhone"
+        await viewModel.search()
+        await viewModel.loadMoreIfNeeded()
+
+        #expect(viewModel.results.count == 15)
+        #expect(viewModel.paginationState == .exhausted)
+    }
+
+    @Test
+    func loadMoreDoesNothingWhenNotInLoadedState() async {
+        let recorder = PaginationRequestRecorder()
+        let viewModel = SearchViewModel(
+            repository: .pagedMock(search: { query, offset, limit in
+                await recorder.record(query: query, offset: offset, limit: limit)
+                return ProductSearchPage(items: [], offset: offset, limit: limit, total: 0)
+            }),
+            configuration: .preview
+        )
+
+        await viewModel.loadMoreIfNeeded()
+
+        #expect(await recorder.requests.isEmpty)
+        #expect(viewModel.paginationState == .idle)
+    }
+
+    @Test
+    func loadMoreIsGatedWhileAnotherPageIsInFlight() async throws {
+        let recorder = PaginationRequestRecorder()
+        let viewModel = SearchViewModel(
+            repository: .pagedMock(search: { query, offset, limit in
+                await recorder.record(query: query, offset: offset, limit: limit)
+                if offset > 0 {
+                    try await Task.sleep(for: .milliseconds(100))
+                }
+                let items = (offset ..< offset + limit).map { index in
+                    TestFixtures.summary(id: "ITEM-\(index)")
+                }
+                return ProductSearchPage(items: items, offset: offset, limit: limit, total: 100)
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "iPhone"
+        await viewModel.search()
+
+        let firstLoadMore = Task { await viewModel.loadMoreIfNeeded() }
+        let secondLoadMore = Task { await viewModel.loadMoreIfNeeded() }
+
+        await firstLoadMore.value
+        await secondLoadMore.value
+
+        let requests = await recorder.requests
+        // First call = initial search at offset 0. Second = the one loadMore that passed the gate.
+        #expect(requests.count == 2)
+        #expect(requests[1].offset == SearchViewModel.pageSize)
+        #expect(viewModel.results.count == 2 * SearchViewModel.pageSize)
+    }
+
+    @Test
+    func loadMoreSurfacesErrorAndRetrySucceeds() async {
+        let attempts = LoadMoreAttemptCounter()
+        let viewModel = SearchViewModel(
+            repository: .pagedMock(search: { _, offset, limit in
+                if offset == 0 {
+                    let items = (0 ..< limit).map { index in TestFixtures.summary(id: "ITEM-\(index)") }
+                    return ProductSearchPage(items: items, offset: 0, limit: limit, total: 30)
+                }
+
+                let attempt = await attempts.incrementAndRead()
+                if attempt == 1 {
+                    throw AppError.forbidden
+                }
+
+                let items = (offset ..< offset + limit).map { index in
+                    TestFixtures.summary(id: "ITEM-\(index)")
+                }
+                return ProductSearchPage(items: items, offset: offset, limit: limit, total: 30)
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "iPhone"
+        await viewModel.search()
+        await viewModel.loadMoreIfNeeded()
+
+        #expect(viewModel.paginationState == .failedToLoadMore(AppError.forbidden))
+        #expect(viewModel.results.count == SearchViewModel.pageSize)
+
+        await viewModel.retryLoadMore()
+
+        #expect(viewModel.paginationState == .idle)
+        #expect(viewModel.results.count == 2 * SearchViewModel.pageSize)
+    }
+
+    @Test
+    func newSearchInvalidatesInFlightLoadMoreResponse() async throws {
+        let viewModel = SearchViewModel(
+            repository: .pagedMock(search: { query, offset, limit in
+                if query == "iPhone", offset == 0 {
+                    let items = (0 ..< limit).map { index in TestFixtures.summary(id: "IP-\(index)") }
+                    return ProductSearchPage(items: items, offset: 0, limit: limit, total: 30)
+                }
+
+                if query == "iPhone", offset > 0 {
+                    try await Task.sleep(for: .milliseconds(200))
+                    let items = (offset ..< offset + limit).map { index in
+                        TestFixtures.summary(id: "IP-\(index)")
+                    }
+                    return ProductSearchPage(items: items, offset: offset, limit: limit, total: 30)
+                }
+
+                let items = (offset ..< offset + limit).map { index in
+                    TestFixtures.summary(id: "SONY-\(index)")
+                }
+                return ProductSearchPage(items: items, offset: offset, limit: limit, total: 5)
+            }),
+            configuration: .preview
+        )
+
+        viewModel.query = "iPhone"
+        await viewModel.search()
+
+        let loadMoreTask = Task { await viewModel.loadMoreIfNeeded() }
+        try await Task.sleep(for: .milliseconds(20))
+
+        viewModel.query = "Sony"
+        await viewModel.search()
+        await loadMoreTask.value
+
+        // The results and state must reflect the Sony search, not the discarded iPhone load-more.
+        #expect(viewModel.lastSubmittedQuery == "Sony")
+        #expect(viewModel.results.allSatisfy { $0.id.hasPrefix("SONY-") })
+    }
 }
 
 private actor SearchQueryRecorder {
@@ -255,25 +456,82 @@ private final class TestDateProvider {
 }
 
 private enum TestFixtures {
-    static let summary = ProductSummary(
-        id: "ITEM-1",
-        title: "iPhone 15 Pro",
-        subtitle: "Test device",
-        price: 10,
-        currencyCode: "ARS",
-        thumbnailURL: nil,
-        permalinkURL: nil,
-        condition: "new",
-        availableQuantity: 1,
-        soldQuantity: 1,
-        attributes: [ProductAttribute(id: "BRAND", name: "Brand", value: "Apple")],
-        shipping: ShippingInfo(isFreeShipping: true, isStorePickupAvailable: false)
-    )
+    static let summary = summary(id: "ITEM-1")
+
+    /// Builds a reusable product fixture with a caller-specified identifier.
+    static func summary(id: String) -> ProductSummary {
+        ProductSummary(
+            id: id,
+            title: "iPhone 15 Pro",
+            subtitle: "Test device",
+            price: 10,
+            currencyCode: "ARS",
+            thumbnailURL: nil,
+            permalinkURL: nil,
+            condition: "new",
+            availableQuantity: 1,
+            soldQuantity: 1,
+            attributes: [ProductAttribute(id: "BRAND", name: "Brand", value: "Apple")],
+            shipping: ShippingInfo(isFreeShipping: true, isStorePickupAvailable: false)
+        )
+    }
+}
+
+/// Parameters captured from a single paginated repository invocation.
+private struct PaginationRequest: Equatable {
+    let query: String
+    let offset: Int
+    let limit: Int
+}
+
+/// Records the offset/limit/query sequence used by pagination tests.
+private actor PaginationRequestRecorder {
+    private(set) var requests: [PaginationRequest] = []
+
+    func record(query: String, offset: Int, limit: Int) {
+        requests.append(PaginationRequest(query: query, offset: offset, limit: limit))
+    }
+}
+
+/// Counts load-more attempts so a failing fixture can succeed on retry.
+private actor LoadMoreAttemptCounter {
+    private var count = 0
+
+    func incrementAndRead() -> Int {
+        count += 1
+        return count
+    }
 }
 
 private extension ProductRepository {
+    /// Adapts a classic `(query) -> [ProductSummary]` closure into the paged repository shape.
+    /// Keeps existing tests terse while the view model drives pagination via offset/limit.
     static func mock(
         search: @escaping (String) async throws -> [ProductSummary] = { _ in [] },
+        detail: @escaping (String) async throws -> ProductDetail = { _ in
+            throw AppError.unknown("No detail stub was provided.")
+        }
+    ) -> ProductRepository {
+        ProductRepository(
+            search: { query, offset, limit in
+                let allItems = try await search(query)
+                let clampedOffset = max(0, min(offset, allItems.count))
+                let upperBound = min(clampedOffset + max(0, limit), allItems.count)
+                let pageItems = Array(allItems[clampedOffset ..< upperBound])
+                return ProductSearchPage(
+                    items: pageItems,
+                    offset: clampedOffset,
+                    limit: limit,
+                    total: allItems.count
+                )
+            },
+            detail: detail
+        )
+    }
+
+    /// Exposes the full paged closure for tests that need to assert offset/limit values.
+    static func pagedMock(
+        search: @escaping (_ query: String, _ offset: Int, _ limit: Int) async throws -> ProductSearchPage,
         detail: @escaping (String) async throws -> ProductDetail = { _ in
             throw AppError.unknown("No detail stub was provided.")
         }

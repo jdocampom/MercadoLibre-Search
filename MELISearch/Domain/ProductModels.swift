@@ -80,3 +80,26 @@ struct ShippingInfo: Hashable, Codable, Sendable {
     /// Fallback shipping state used when the backend omits shipping data.
     static let unavailable = ShippingInfo(isFreeShipping: false, isStorePickupAvailable: false)
 }
+
+/// Paged product search response returned by the repository.
+struct ProductSearchPage: Equatable, Sendable {
+    /// Product summaries contained in this page.
+    let items: [ProductSummary]
+    /// Zero-based offset of the first item in this page.
+    let offset: Int
+    /// Maximum number of items the server was asked to return for this page.
+    let limit: Int
+    /// Total number of items available for the query across all pages, when the backend reports it.
+    let total: Int?
+
+    /// Indicates whether another page is likely available after this one.
+    /// Falls back to a best-effort check when the backend omits the total count.
+    var hasMorePages: Bool {
+        if let total {
+            return offset + items.count < total
+        }
+
+        // Without an authoritative total, assume there is more only when the server filled the page.
+        return !items.isEmpty && items.count >= limit
+    }
+}

@@ -20,8 +20,8 @@ enum LiveProductRepository {
         )
 
         return ProductRepository(
-            search: { query in
-                try await client.searchProducts(matching: query)
+            search: { query, offset, limit in
+                try await client.searchProducts(matching: query, offset: offset, limit: limit)
             },
             detail: { id in
                 try await client.fetchProductDetail(id: id)

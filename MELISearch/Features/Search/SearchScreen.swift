@@ -23,6 +23,8 @@ struct SearchScreen: View {
     private let suggestions = ["iPhone", "Sony", "Kindle", "Garmin", "Speaker"]
     /// Adaptive grid used to lay out idle-state suggestion chips.
     private let columns = [GridItem(.adaptive(minimum: 120), spacing: 12)]
+    /// Distance from the content bottom, in points, that triggers the next-page prefetch.
+    private let paginationTriggerThreshold: CGFloat = 600
 
     /// Builds the search experience including banners, result states, and the pinned search bar.
     var body: some View {
@@ -41,6 +43,21 @@ struct SearchScreen: View {
                 content
             }
             .padding(20)
+        }
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            // True once the viewport is within the trigger threshold of the content bottom,
+            // so transitions from false → true drive pagination exactly once per crossing.
+            let distanceFromBottom = geometry.contentSize.height
+                - (geometry.contentOffset.y + geometry.containerSize.height)
+            return distanceFromBottom < paginationTriggerThreshold
+        } action: { _, isNearBottom in
+            guard isNearBottom else {
+                return
+            }
+
+            Task {
+                await viewModel.loadMoreIfNeeded()
+            }
         }
         .background(backgroundGradient.ignoresSafeArea())
         .navigationTitle("MELI Search")
@@ -466,7 +483,7 @@ private extension SearchScreen {
     var resultsState: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(viewModel.results.count) Results")
+                Text(resultsCountTitle)
                     .font(.headline)
                     .accessibilityIdentifier("resultsCountLabel")
 
@@ -484,9 +501,64 @@ private extension SearchScreen {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("productRow_\(product.id)")
                 }
+
+                paginationFooter
             }
         }
         .accessibilityIdentifier("searchResultsState")
+    }
+
+    /// Headline used above the results list.
+    /// When the backend reports a total it is surfaced so users know how many pages remain.
+    var resultsCountTitle: String {
+        if let total = viewModel.totalResults, total > viewModel.results.count {
+            return "Showing \(viewModel.results.count) of \(total) results"
+        }
+
+        return "\(viewModel.results.count) Results"
+    }
+
+    @ViewBuilder
+    /// Footer that sits below the results list to reflect the current pagination state.
+    var paginationFooter: some View {
+        switch viewModel.paginationState {
+        case .idle:
+            EmptyView()
+        case .loadingMore:
+            HStack(spacing: 12) {
+                ProgressView()
+                Text("Loading more results…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .accessibilityIdentifier("paginationLoadingFooter")
+        case .exhausted:
+            Text("You've reached the end of the results.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .accessibilityIdentifier("paginationExhaustedFooter")
+        case let .failedToLoadMore(error):
+            VStack(spacing: 10) {
+                Text(error.localizedDescription)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button("Try Again") {
+                    Task {
+                        await viewModel.retryLoadMore()
+                    }
+                }
+                .buttonStyle(.bordered)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .accessibilityIdentifier("paginationErrorFooter")
+        }
     }
 
     /// Background gradient shared by all search states.

@@ -4,6 +4,18 @@ import Foundation
 struct MercadoProductSearchResponseDTO: Decodable, Sendable {
     /// Raw catalog products returned by the backend.
     let results: [MercadoProductSearchResultDTO]
+    /// Paging metadata reported by the backend for the current search window.
+    let paging: MercadoPagingDTO?
+}
+
+/// Paging metadata attached to a Mercado Libre search response.
+struct MercadoPagingDTO: Decodable, Sendable {
+    /// Total number of items available for the query across all pages.
+    let total: Int?
+    /// Zero-based offset of the first item in this page.
+    let offset: Int?
+    /// Maximum number of items the server returned for this page.
+    let limit: Int?
 }
 
 /// Raw Mercado Libre catalog product payload returned by the search endpoint.

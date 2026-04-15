@@ -6,15 +6,15 @@ enum DemoProductRepository {
     /// - Returns: A repository that serves demo products without network access.
     static func makeRepository() -> ProductRepository {
         ProductRepository(
-            search: { query in
+            search: { query, offset, limit in
                 // The demo catalog mirrors production behavior by ignoring blank submissions.
                 let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !normalizedQuery.isEmpty else {
-                    return []
+                    return ProductSearchPage(items: [], offset: offset, limit: limit, total: 0)
                 }
 
                 let loweredQuery = normalizedQuery.lowercased()
-                return catalog
+                let matches = catalog
                     .filter { detail in
                         detail.title.lowercased().contains(loweredQuery) ||
                         detail.attributes.contains(where: { attribute in
@@ -23,6 +23,19 @@ enum DemoProductRepository {
                         })
                     }
                     .map(\.summary)
+
+                // Clamp offsets so callers never reach past the available fixtures.
+                let clampedOffset = max(0, min(offset, matches.count))
+                let pageLimit = max(0, limit)
+                let upperBound = min(clampedOffset + pageLimit, matches.count)
+                let pageItems = Array(matches[clampedOffset ..< upperBound])
+
+                return ProductSearchPage(
+                    items: pageItems,
+                    offset: clampedOffset,
+                    limit: limit,
+                    total: matches.count
+                )
             },
             detail: { id in
                 guard let product = catalog.first(where: { $0.id == id }) else {

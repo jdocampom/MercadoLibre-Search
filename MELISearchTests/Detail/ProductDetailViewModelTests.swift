@@ -24,7 +24,9 @@ struct ProductDetailViewModelTests {
     func loadIfNeededDoesNotFetchTwiceAfterSuccess() async {
         let callCounter = DetailCallCounter()
         let repository = ProductRepository(
-            search: { _ in [] },
+            search: { _, offset, limit in
+                ProductSearchPage(items: [], offset: offset, limit: limit, total: 0)
+            },
             detail: { _ in
                 await callCounter.increment()
                 return DetailFixtures.detail
@@ -50,7 +52,9 @@ struct ProductDetailViewModelTests {
             second: DetailFixtures.reloadedDetail
         )
         let repository = ProductRepository(
-            search: { _ in [] },
+            search: { _, offset, limit in
+                ProductSearchPage(items: [], offset: offset, limit: limit, total: 0)
+            },
             detail: { id in
                 #expect(id == DetailFixtures.summary.id)
                 return await sequence.next()
@@ -139,7 +143,9 @@ struct ProductDetailViewModelTests {
     func failedReloadKeepsPreviouslyLoadedDetailVisible() async {
         let callCounter = DetailCallCounter()
         let repository = ProductRepository(
-            search: { _ in [] },
+            search: { _, offset, limit in
+                ProductSearchPage(items: [], offset: offset, limit: limit, total: 0)
+            },
             detail: { _ in
                 let currentCall = await callCounter.incrementAndReturn()
 
@@ -251,14 +257,18 @@ private actor DetailSequence {
 private extension ProductRepository {
     static func detailMock(_ detail: ProductDetail) -> ProductRepository {
         ProductRepository(
-            search: { _ in [] },
+            search: { _, offset, limit in
+                ProductSearchPage(items: [], offset: offset, limit: limit, total: 0)
+            },
             detail: { _ in detail }
         )
     }
 
     static func failingDetailMock(_ error: AppError) -> ProductRepository {
         ProductRepository(
-            search: { _ in [] },
+            search: { _, offset, limit in
+                ProductSearchPage(items: [], offset: offset, limit: limit, total: 0)
+            },
             detail: { _ in throw error }
         )
     }

@@ -31,16 +31,24 @@ final class MELIAPIClient {
         self.urlSession = urlSession
     }
 
-    /// Executes a search request and maps the response into summary models.
-    /// - Parameter query: Search text to forward to Mercado Libre.
-    /// - Returns: Product summaries returned by the search endpoint.
-    func searchProducts(matching query: String) async throws -> [ProductSummary] {
+    /// Executes a paged search request and maps the response into a summary page.
+    /// - Parameters:
+    ///   - query: Search text to forward to Mercado Libre.
+    ///   - offset: Zero-based offset of the first item requested for the page.
+    ///   - limit: Maximum number of items requested for the page.
+    /// - Returns: Page of product summaries plus backend paging metadata.
+    func searchProducts(matching query: String, offset: Int, limit: Int) async throws -> ProductSearchPage {
         let siteID = await searchSiteIDProvider()
         let payload: MercadoProductSearchResponseDTO = try await request(
-            endpoint: .productSearch(query: query, siteID: siteID)
+            endpoint: .productSearch(query: query, siteID: siteID, offset: offset, limit: limit)
         )
 
-        return payload.results.map(\.summary)
+        return ProductSearchPage(
+            items: payload.results.map(\.summary),
+            offset: payload.paging?.offset ?? offset,
+            limit: payload.paging?.limit ?? limit,
+            total: payload.paging?.total
+        )
     }
 
     /// Loads a product detail response, serving cached values when available.

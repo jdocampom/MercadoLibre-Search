@@ -21,13 +21,13 @@ struct MELIAPIClientTests {
             urlSession: makeStubURLSession()
         )
 
-        let results = try await client.searchProducts(matching: "iPhone")
+        let page = try await client.searchProducts(matching: "iPhone", offset: 0, limit: 10)
 
-        #expect(results.count == 1)
-        #expect(results.first?.id == "MCO-PRODUCT-123")
-        #expect(results.first?.title == "iPhone de prueba")
-        #expect(results.first?.price == 1_000)
-        #expect(results.first?.currencyCode == "COP")
+        #expect(page.items.count == 1)
+        #expect(page.items.first?.id == "MCO-PRODUCT-123")
+        #expect(page.items.first?.title == "iPhone de prueba")
+        #expect(page.items.first?.price == 1_000)
+        #expect(page.items.first?.currencyCode == "COP")
         #expect(PublicCatalogFallbackRequestRecorder.snapshot() == ["Bearer APP_USR-env-token"])
     }
 
@@ -49,7 +49,7 @@ struct MELIAPIClientTests {
         )
 
         do {
-            _ = try await client.searchProducts(matching: "iPhone")
+            _ = try await client.searchProducts(matching: "iPhone", offset: 0, limit: 10)
             Issue.record("Expected search to reject APP application tokens.")
         } catch {
             #expect(AppError.from(error) == .invalidUserAccessToken)
@@ -74,11 +74,11 @@ struct MELIAPIClientTests {
             urlSession: makeStubURLSession()
         )
 
-        let results = try await client.searchProducts(matching: "iPhone")
+        let page = try await client.searchProducts(matching: "iPhone", offset: 0, limit: 10)
 
-        #expect(results.count == 1)
-        #expect(results.first?.id == "MLA-PRODUCT-123")
-        #expect(results.first?.title == "iPhone de prueba en MLA")
+        #expect(page.items.count == 1)
+        #expect(page.items.first?.id == "MLA-PRODUCT-123")
+        #expect(page.items.first?.title == "iPhone de prueba en MLA")
         #expect(PublicCatalogFallbackRequestRecorder.snapshot() == ["Bearer APP_USR-env-token"])
     }
 
